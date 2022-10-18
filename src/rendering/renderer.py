@@ -64,9 +64,8 @@ def render_normalmap(vertices, faces, image_size=128, dist=1.0, elev=30, azim=15
         return pixel_normals
 
     normal_maps = phong_normal_shading(mesh, fragments)
-    # Do we really need to permute?? We permute again while comparing hist and it seems not beneficial
-    normal_maps = normal_maps.min(dim=-2)[0].permute((0, 3, 1, 2))
-    return normal_maps
+    normal_maps = normal_maps.min(dim=-2)[0][:, :, :, [2,1,0]]
+    return normal_maps / 3
 
 def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
     """Render a textured mesh to the given view
