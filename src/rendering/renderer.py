@@ -17,7 +17,7 @@ from pytorch3d.renderer.blending import BlendParams
 from pytorch3d.renderer.mesh.textures import Textures
 from pytorch3d.structures import Meshes
 
-def render_normalmap(vertices, faces, image_size=128, dist=1.0, elev=30, azim=150):
+def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30, azim=150):
     """Render world-space normal maps of meshes with a given color + resolution.
     Source: https://github.com/facebookresearch/pytorch3d/issues/865
 
@@ -42,6 +42,7 @@ def render_normalmap(vertices, faces, image_size=128, dist=1.0, elev=30, azim=15
         The normal maps from the given viewpoint.
     """
     mesh = Meshes(verts=vertices.float(), faces=faces.float())
+    mesh = mesh.to(device)
     # create texture
     # Initialize a camera.
     R, T = look_at_view_transform(dist, elev, azim)
@@ -87,7 +88,8 @@ def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
         Visualize the image as .
     """
     # If texture doesnot exist, create a plain texture to render
-    if mesh.textures == None:
+    # if mesh.textures == None:
+    if True:
         temp_mesh = mesh
         verts_rgb = torch.ones_like(mesh.verts_list()[0])[None]
         textures = TexturesVertex(verts_features=verts_rgb.to(device))
@@ -106,7 +108,7 @@ def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
     )
     
     # Set up light
-    lights = PointLights(device=device, location=[[3.0, 3.0, 3.0]])
+    lights = PointLights(device=device, location=[[5.0, 5.0, 5.0]])
     
     renderer = MeshRenderer(
         rasterizer=MeshRasterizer(

@@ -14,5 +14,5 @@ def retrieve_instances(color_img, instance, label):
     Returns:
         Masked out image, array/tensor of size (W, H, 3)     
     '''
-    return color_img*(instance == label)[:, :, None] / 255
+    return color_img*(instance == label)[:, :, None] 
 
