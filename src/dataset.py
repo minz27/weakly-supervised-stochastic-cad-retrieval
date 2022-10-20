@@ -102,7 +102,9 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
 
         return {
             "normal_maps": normal_tensor,
-            "rendered_views": render_tensor
+            "rendered_views": render_tensor,
+            "cat_id": self.items[index].split(sep="/")[0],
+            "model_id": self.items[index].split(sep="/")[1]
         }
 
     def __len__(self):

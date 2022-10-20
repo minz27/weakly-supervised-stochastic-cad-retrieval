@@ -23,6 +23,8 @@ def self_similarity_normal_histogram(nmap, mask,box=None):
     pairwise_angle = np.arccos(pairwise_product)
     hist, _ = np.histogram(pairwise_angle, bin_vect)
     hist = hist.astype(np.float32) / np.sqrt(pairwise_product.size) # Divide by the square root.
+    # Normalise to sum to 1
+    hist = hist / np.sum(hist)
     return hist 
 
 def calculate_histogram_iou(hist1, hist2, eps = 1e-5):
@@ -35,4 +37,5 @@ def calculate_histogram_iou(hist1, hist2, eps = 1e-5):
     intersection = np.minimum(hist1, hist2)
     union = np.maximum(hist1, hist2)
     
-    return np.sum(intersection / (union + eps))    
+    # return np.sum(intersection / (union + eps))
+    return np.sum(intersection) / np.sum(union + eps)    

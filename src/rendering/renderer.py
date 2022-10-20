@@ -65,7 +65,8 @@ def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30,
         return pixel_normals
 
     normal_maps = phong_normal_shading(mesh, fragments)
-    normal_maps = normal_maps.min(dim=-2)[0][:, :, :, [2,1,0]]
+    # normal_maps = normal_maps.min(dim=-2)[0][:, :, :, [2,1,0]]
+    normal_maps = normal_maps.min(dim=-2)[0][:, :, :, :]
     return normal_maps / 3
 
 def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
