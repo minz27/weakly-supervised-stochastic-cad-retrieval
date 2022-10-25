@@ -67,6 +67,9 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
 
         self.shapenet_root = shapenet_root                 
         self.config = config
+        self.transforms = transforms.Compose([
+            transforms.ToTensor()
+        ])
 
         with open(split) as f: 
             self.items = f.readlines()
@@ -77,7 +80,8 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
     def __getitem__(self, index):
         # Return rendered n canonical views and normal maps  
         # TODO: take these values from config
-        canonical_azimuth = [0, 60, 120, 180, 240, 300]
+        # canonical_azimuth = [0, 60, 120, 180, 240, 300]
+        canonical_azimuth = [240]
         dist = 1.5
 
         mesh_path = os.path.join(self.shapenet_root, self.items[index], "models/model_normalized.obj")
@@ -97,8 +101,10 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
             normal_maps.append(render_normalmap(vertices, faces, device = torch.device(self.config["device"]), azim=azim, dist = dist)) 
             renders.append(render_view(mesh_pytorch3d, device = torch.device(self.config["device"]), azim=azim, dist=dist))
 
-        normal_tensor = torch.stack(normal_maps).permute(1,0,2,3,4)
-        render_tensor = torch.stack(renders).permute(1,0,2,3,4) 
+        # normal_tensor = torch.stack(normal_maps).permute(1,0,2,3,4)
+        # render_tensor = torch.stack(renders).permute(1,0,2,3,4) 
+        normal_tensor = torch.stack(normal_maps).permute(1,0,4,2,3)
+        render_tensor = torch.stack(renders).permute(1,0,4,2,3) 
 
         return {
             "normal_maps": normal_tensor,
