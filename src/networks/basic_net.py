@@ -6,30 +6,35 @@ class Encoder(nn.Module):
         super().__init__()
 
         self.encoder = nn.Sequential(
-            #128x128
+            #128x128 240x240
             nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1, stride=2),
             nn.BatchNorm2d(num_features=32),
             nn.ReLU(),
 
-            #64x64
+            #64x64 120x120
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1, stride=2),
             nn.BatchNorm2d(num_features=64),
             nn.ReLU(),
 
-            #32x32
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=2),
-            nn.BatchNorm2d(num_features=64),
+            #32x32 60x60
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1, stride=2),
+            nn.BatchNorm2d(num_features=128),
             nn.ReLU(),
 
-            #16x16
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1, stride=2),
-            nn.BatchNorm2d(num_features=64),
+            #16x16 30x30
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=2),
+            nn.BatchNorm2d(num_features=128),
             nn.ReLU(),
-            #8x8
+
+            #8x8 15x15
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1, stride=2),
+            nn.BatchNorm2d(num_features=128),
+            nn.ReLU(),
+            #3x3 7x7
         )
 
         self.embedding = nn.Sequential(        
-            nn.Linear(in_features=4096, out_features=1024),
+            nn.Linear(in_features=8192, out_features=1024),
             nn.ReLU(),
             nn.Linear(in_features=1024, out_features=512)
         )

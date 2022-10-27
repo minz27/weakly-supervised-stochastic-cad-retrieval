@@ -4,7 +4,6 @@ import torch
 import torchvision.transforms as transforms
 import json
 import os
-from PIL import Image
 from src.rendering.renderer import render_normalmap, render_view 
 import trimesh
 from pytorch3d.io import load_objs_as_meshes
@@ -98,8 +97,8 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
         renders = []
 
         for azim in canonical_azimuth:
-            normal_maps.append(render_normalmap(vertices, faces, device = torch.device(self.config["device"]), azim=azim, dist = dist)) 
-            renders.append(render_view(mesh_pytorch3d, device = torch.device(self.config["device"]), azim=azim, dist=dist))
+            normal_maps.append(render_normalmap(vertices, faces, image_size = self.config["width"] ,device = torch.device(self.config["device"]), azim=azim, dist = dist)) 
+            renders.append(render_view(mesh_pytorch3d,  image_size = self.config["width"], device = torch.device(self.config["device"]), azim=azim, dist=dist))
 
         # normal_tensor = torch.stack(normal_maps).permute(1,0,2,3,4)
         # render_tensor = torch.stack(renders).permute(1,0,2,3,4) 
