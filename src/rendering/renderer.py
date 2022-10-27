@@ -8,6 +8,7 @@ from pytorch3d.renderer import (
     MeshRasterizer,
     MeshRenderer,
     PointLights,
+    AmbientLights,
     RasterizationSettings,
     look_at_view_transform,
     SoftPhongShader,

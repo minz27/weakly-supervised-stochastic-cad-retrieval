@@ -43,7 +43,6 @@ def train(scan_model, shape_model, device, config, scannetloader, shapenetloader
                 scannet_iterator = iter(scannetloader)
                 scan = next(scannet_iterator)
 
-            #Make 128x128 configurable
             rendered_views = shape["rendered_views"].squeeze(1).view(-1, 3, config['height'], config['height']).to(device)
             #Think about how to get this for multiple objects, maybe retrieve each label and stack them?
             #Also to reduce complexity, retrieve only the specific classes for which shapes exist in shapenet
