@@ -68,7 +68,7 @@ def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30,
     normal_maps = phong_normal_shading(mesh, fragments)
     # normal_maps = normal_maps.min(dim=-2)[0][:, :, :, [2,1,0]]
     normal_maps = normal_maps.min(dim=-2)[0][:, :, :, :]
-    return normal_maps / 3
+    return normal_maps / 3, R, T
 
 def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
     """Render a textured mesh to the given view
@@ -125,4 +125,4 @@ def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
         )
     )
     
-    return renderer(mesh)[:, :, :, :3]    
+    return renderer(mesh)[:, :, :, :3]

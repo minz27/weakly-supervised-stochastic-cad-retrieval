@@ -95,9 +95,15 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
         #For loop to render for each view
         normal_maps = []
         renders = []
+        R = []
+        T = []
 
         for azim in canonical_azimuth:
-            normal_maps.append(render_normalmap(vertices, faces, image_size = self.config["width"] ,device = torch.device(self.config["device"]), azim=azim, dist = dist)) 
+            normal_map, r, t = render_normalmap(vertices, faces, image_size = self.config["width"] ,device = torch.device(self.config["device"]), azim=azim, dist = dist)
+            normal_maps.append(normal_map)
+            R.append(r)
+            T.append(t)
+
             renders.append(render_view(mesh_pytorch3d,  image_size = self.config["width"], device = torch.device(self.config["device"]), azim=azim, dist=dist))
 
         # normal_tensor = torch.stack(normal_maps).permute(1,0,2,3,4)
@@ -109,7 +115,9 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
             "normal_maps": normal_tensor,
             "rendered_views": render_tensor,
             "cat_id": self.items[index].split(sep="/")[0],
-            "model_id": self.items[index].split(sep="/")[1]
+            "model_id": self.items[index].split(sep="/")[1],
+            "R": torch.stack(R),
+            "T": torch.stack(T)
         }
 
     def __len__(self):
