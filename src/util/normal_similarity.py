@@ -36,6 +36,9 @@ def calculate_histogram_iou(hist1, hist2, eps = 1e-5):
     '''
     intersection = np.minimum(hist1, hist2)
     union = np.maximum(hist1, hist2)
-    
-    # return np.sum(intersection / (union + eps))
+
+    # return np.mean(intersection / (union + eps))
     return np.sum(intersection) / np.sum(union + eps)    
+
+def scale_tensor(tensor, a = -1, b = 1):
+    return (a + ((tensor - tensor.min())*(b - a)) / (tensor.max() - tensor.min()))    

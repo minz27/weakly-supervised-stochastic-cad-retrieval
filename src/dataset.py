@@ -127,7 +127,6 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
             normal_maps.append(normal_map)
             R.append(r)
             T.append(t)
-
             renders.append(render_view(mesh_pytorch3d,  image_size = self.config["width"], device = torch.device(self.config["device"]), azim=azim, dist=dist))
 
         # normal_tensor = torch.stack(normal_maps).permute(1,0,2,3,4)

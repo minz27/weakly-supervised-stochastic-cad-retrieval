@@ -51,6 +51,7 @@ def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30,
     raster_settings = RasterizationSettings(
         image_size=image_size, bin_size=[0, None][0], cull_backfaces=True,
     )
+
     rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
     fragments = rasterizer(mesh)
     
@@ -68,7 +69,8 @@ def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30,
     normal_maps = phong_normal_shading(mesh, fragments)
     # normal_maps = normal_maps.min(dim=-2)[0][:, :, :, [2,1,0]]
     normal_maps = normal_maps.min(dim=-2)[0][:, :, :, :]
-    return normal_maps / 3, R, T
+
+    return (normal_maps / 3)*torch.tensor([-1,1,1]).to(device), R, T
 
 def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
     """Render a textured mesh to the given view
@@ -126,3 +128,38 @@ def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
     )
     
     return renderer(mesh)[:, :, :, :3]
+
+def render_depthmap(vertices, faces, device, image_size=128, dist=1.0, elev=30, azim=150):
+    """Render depthmaps of meshes with a given color + resolution.
+    Parameters
+    ----------
+    vertices : torch.Tensor, shape=(B, N, 3)
+        Array of vertex coordinates.
+    faces : torch.Tensor, shape=(B, M, 3)
+        Array of vertex indices for each face.
+    image_size : int, optional
+        Image resulution, by default 128
+    dist : float, optional
+        Camera distance from the origin, by default 1.0
+    elev : int, optional
+        Eelevation of the camera viewpoint in degrees, by default 30
+    azim : int, optional
+        Azimuth of the camera viewpoint in degrees (180 is from the front),
+        by default 150
+    Returns
+    -------
+    depth_maps : torch.Tensor, shape=(B, image_size, image_size)
+        The depthmaps from the given viewpoint.
+    """
+    mesh = Meshes(verts=vertices.float(), faces=faces.float())
+    mesh = mesh.to(device)
+    # create texture
+    # Initialize a camera.
+    R, T = look_at_view_transform(dist, elev, azim)
+    cameras = FoVPerspectiveCameras(device=device, R=R, T=T)
+    raster_settings = RasterizationSettings(
+        image_size=image_size, bin_size=[0, None][0]
+    )
+    rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
+    depth_maps = rasterizer(mesh).zbuf.min(dim=-1)[0]
+    return depth_maps
