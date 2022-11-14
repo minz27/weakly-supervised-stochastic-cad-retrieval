@@ -5,24 +5,12 @@ from src.dataset import OverfitDatasetScannet, OverfitDatasetShapenet
 from src.networks.basic_net import Encoder 
 from src.util.losses import SupervisedContrastiveLoss
 from src.util.normal_similarity import self_similarity_normal_histogram, calculate_histogram_iou
-from src.data.prepare_data import retrieve_instances, transform_normal_map'
+from src.data.prepare_data import retrieve_instances, transform_normal_map
 
-#TODO move to config file
-#can just make it a set innit
-label_dict = {
-    4: "bed",
-    5: "chair",
-    6: "sofa",
-    7: "table",
-    10: "bookshelf",
-    12: "counter",
-    14: "desk",
-    15: "shelves",
-    35: "lamp",
-    37: "bag",
-    39: "otherfurniture",
-    40: "otherprop"
-}
+#TODO: import from config file
+valid_labels = [
+    4,    5,    6,    7,    10,    12,    14,    15,    35,    37,    39,    40
+    ]
 
 def train(scan_model, shape_model, device, config, scannetloader, shapenetloader):
     
@@ -48,12 +36,12 @@ def train(scan_model, shape_model, device, config, scannetloader, shapenetloader
     shape_model.to(device)
 
     #To speed up overfit, i will cache the histogram calculation for the one image we have
-    scan = next(iter(scannetloader))
-    masked_img = retrieve_instances(scan["img"], scan["mask"], 6001).to(device)
-    gt_normal_img = scan["normal"]
-    gt_normal_instance = retrieve_instances(scan["normal"], scan["mask"], 6001).squeeze(0).permute(1,2,0).detach().cpu().numpy()
-    gt_normal_mask = ((gt_normal_instance[:,:,2] != 0) | (gt_normal_instance[:,:,1] != 0) | (gt_normal_instance[:,:,0] != 0))
-    gt_normal_hist = self_similarity_normal_histogram(gt_normal_instance, gt_normal_mask)
+    # scan = next(iter(scannetloader))
+    # masked_img = retrieve_instances(scan["img"], scan["mask"], 6001).to(device)
+    # gt_normal_img = scan["normal"]
+    # gt_normal_instance = retrieve_instances(scan["normal"], scan["mask"], 6001).squeeze(0).permute(1,2,0).detach().cpu().numpy()
+    # gt_normal_mask = ((gt_normal_instance[:,:,2] != 0) | (gt_normal_instance[:,:,1] != 0) | (gt_normal_instance[:,:,0] != 0))
+    # gt_normal_hist = self_similarity_normal_histogram(gt_normal_instance, gt_normal_mask)
     #End caching
 
     #Add training loop
@@ -75,11 +63,13 @@ def train(scan_model, shape_model, device, config, scannetloader, shapenetloader
                 scan = next(scannet_iterator)
 
             rendered_views = shape["rendered_views"].squeeze(1).view(-1, 3, config['height'], config['height']).to(device)
-            #Think about how to get this for multiple objects, maybe retrieve each label and stack them?
-            #Also to reduce complexity, retrieve only the specific classes for which shapes exist in shapenet
-            # masked_img = retrieve_instances(scan["img"], scan["mask"], 6001).to(device)
-            masked_imgs = retrieve_instances(scan["img"], scan["mask"], label_dict, 2).to(device)    
-            #Compute embeddings, hardcoding instance label to retrieve here for overfitting
+            
+            #Mask out instances
+            masked_imgs = retrieve_instances(scan["img"], scan["mask"], valid_labels, 2).to(device) #2xNxCxWxH
+            masked_imgs = masked_img.view(-1, 3, config["width"], config["height"]) #(2N)xCxWxH
+            masked_normals = retrieve_instances(scan["normal"], scan["mask"], valid_labels, 2).view(-1, 3, config["width"], config["height"]) 
+            
+            #Compute embeddings
             scan_embedding = scan_model(masked_img)
             shape_embedding = shape_model(rendered_views)
             

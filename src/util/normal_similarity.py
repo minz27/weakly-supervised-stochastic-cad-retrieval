@@ -38,7 +38,23 @@ def calculate_histogram_iou(hist1, hist2, eps = 1e-5):
     union = np.maximum(hist1, hist2)
 
     # return np.mean(intersection / (union + eps))
-    return np.sum(intersection) / np.sum(union + eps)    
+    return np.sum(intersection) / np.sum(union + eps)
+
+def calculate_histogram_similarity_matrix(histograms, eps = 1e-5):
+    '''
+    Args:
+        histograms: self-similarity histograms, numpy.ndarray of shape (N, 18)
+    Returns:
+        IoU Similarity Matrix: numpy.ndarray of shape (N,N)    
+    '''
+    rows = histograms[:, None, :]
+    columns = histograms[None, :, :]
+
+    intersection = np.minimum(rows, columns)
+    union = np.maximum(rows, columns)
+
+    similarity_matrix = np.sum(intersection, axis = 2) / np.sum(union + 1e-5, axis = 2)
+    return similarity_matrix
 
 def scale_tensor(tensor, a = -1, b = 1):
     return (a + ((tensor - tensor.min())*(b - a)) / (tensor.max() - tensor.min()))    
