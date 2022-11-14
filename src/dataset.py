@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 import json
 import os
 from src.rendering.renderer import render_normalmap, render_view 
+from src.util.normal_similarity import scale_tensor
 import trimesh
 from pytorch3d.io import load_objs_as_meshes
 
