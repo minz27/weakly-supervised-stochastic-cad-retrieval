@@ -75,10 +75,12 @@ def train(scan_model, shape_model, device, config, scannetloader, shapenetloader
                 histograms.append(self_similarity_normal_histogram(instance_normal, instance_normal_mask))
 
            
-            for i in range(shape['normal_maps'].squeeze(1).squeeze(1).shape[0]):
-                shape_normal = transform_normal_map(shape['normal_maps'].squeeze(1).squeeze(1)[i].permute(1,2,0).detach().cpu().numpy(), 
-                                                    shape['R'].squeeze(1).squeeze(1)[1].detach().cpu().numpy(), 
-                                                    )
+            for i in range(shape['normal_maps'].view(-1, 3, config["width"], config["height"]).shape[0]):
+                # shape_normal = transform_normal_map(shape['normal_maps'].squeeze(1).squeeze(1)[i].permute(1,2,0).detach().cpu().numpy(), 
+                                                    # shape['R'].squeeze(1).squeeze(1)[1].detach().cpu().numpy(), 
+                                                    # )
+                # shape_normal = shape['normal_maps'].squeeze(1).squeeze(1)[i].permute(1,2,0).detach().cpu().numpy()
+                shape_normal = shape['normal_maps'].view(-1, 3, config["width"], config["height"])[i].permute(1,2,0).detach().cpu().numpy()
                 shape_normal_mask = ((shape_normal[:,:,2] != 0) | (shape_normal[:,:,1] != 0) | (shape_normal[:,:,0] != 0))
                 shape_hist = self_similarity_normal_histogram(shape_normal, shape_normal_mask)
                 histograms.append(shape_hist)

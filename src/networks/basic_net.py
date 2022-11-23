@@ -1,9 +1,13 @@
 import torch
 import torch.nn as nn
+from torchvision.models import resnet18
 
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
+
+        self.resnet = resnet18(pretrained=True)
+        self.pretrained = nn.Sequential(*(list(self.resnet.children())[:-1]))
 
         self.encoder = nn.Sequential(
             #128x128 240x240
@@ -34,12 +38,15 @@ class Encoder(nn.Module):
         )
 
         self.embedding = nn.Sequential(        
-            nn.Linear(in_features=8192, out_features=1024),
+            # nn.Linear(in_features=8192, out_features=1024),
+            # nn.ReLU(),
+            # nn.Linear(in_features=1024, out_features=512)
+            nn.Linear(in_features=512, out_features=512),
             nn.ReLU(),
-            nn.Linear(in_features=1024, out_features=512)
+            nn.Linear(in_features=512, out_features=512)
         )
 
-        self._initialize_weights()    
+        #self._initialize_weights()    
 
     def _initialize_weights(self):
         for m in self.modules():
@@ -57,7 +64,7 @@ class Encoder(nn.Module):
                 nn.init.constant_(m.bias, 0)    
 
     def forward(self,x):
-        x = self.encoder(x)
+        x = self.pretrained(x)
         x = x.view(x.size(0), -1)
         x = self.embedding(x)
         return x             

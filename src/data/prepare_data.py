@@ -33,7 +33,7 @@ def return_valid_instances(mask, label_dict, num_instances):
         if len(labels) == num_instances:
             break
       
-    return labels    
+    return labels
 
 def retrieve_instances(color_img, mask, label_dict, num_instances):
     #TODO convert it to torch, operate on tensors directly
@@ -43,7 +43,7 @@ def retrieve_instances(color_img, mask, label_dict, num_instances):
     for i in range(mask.shape[0]):
         labels = return_valid_instances(mask[i], label_dict, num_instances)
         for label in labels:
-            instances.append(mask_instances(color_img[i], mask[i], label)) 
+            instances.append(mask_instances(color_img[i], mask[i], label))
 
     instances = torch.stack(instances)
     return instances

@@ -81,7 +81,7 @@ def generate_labels(similarity_matrix):
         if i not in explored_nodes:
             explored_nodes.append(i)
             labels[i] = label
-            discovered_nodes = np.argwhere(similarity_matrix[i] > 0.5)
+            discovered_nodes = np.argwhere(similarity_matrix[i] > 0.4)
             for node in discovered_nodes:
                 labels[node[0]] = label
                 explored_nodes.append(node[0])

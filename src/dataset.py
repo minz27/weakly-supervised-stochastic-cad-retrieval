@@ -44,8 +44,9 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         img = Image.open(img_path).convert("RGB").resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
         img_tensor = self.transforms(img)
 
-        img_large = Image.open(img_path).convert("RGB").resize(size=(480, 320), resample=Image.BILINEAR)
-        img_tensor_large = self.transforms(img_large)
+        #Delete if not required
+        # img_large = Image.open(img_path).convert("RGB").resize(size=(480, 320), resample=Image.BILINEAR)
+        # img_tensor_large = self.transforms(img_large)
         
         #Ground truth instance masks
         mask_path = os.path.join(self.scannet_root, mask.split('/')[0], 'instance', mask.split('/')[1])
@@ -68,16 +69,18 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         normal_path = os.path.join(self.framenet_root, items.split('/')[0], "frame-" + items.split('/')[1] + "-normal.png")
         normal = Image.open(normal_path).resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
         normal_tensor = -self.transforms(normal) + 0.5
+        normal_tensor *= 2
+        # normal_tensor = (scale_tensor(self.transforms(normal), -1, 1))
 
         #transform normal to world space here
 
         return {
             'img' : img_tensor,
             'mask': mask_tensor,
-            'img_large': img_tensor_large,
+            # 'img_large': img_tensor_large,
             'R': torch.tensor(R),
             'T': torch.tensor(T),
-            'normal': normal_tensor
+            'normal': (normal_tensor)
         }
     def __len__(self):
         return len(self.items)    
@@ -104,8 +107,8 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
     def __getitem__(self, index):
         # Return rendered n canonical views and normal maps  
         # TODO: take these values from config
-        # canonical_azimuth = [0, 60, 120, 180, 240, 300]
-        canonical_azimuth = [240]
+        canonical_azimuth = [0, 60, 120, 180, 240, 300]
+        # canonical_azimuth = [240]
         dist = 1.0
 
         mesh_path = os.path.join(self.shapenet_root, self.items[index], "models/model_normalized.obj")
@@ -136,7 +139,7 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
         render_tensor = torch.stack(renders).permute(1,0,4,2,3) 
 
         return {
-            "normal_maps": normal_tensor,
+            "normal_maps": (normal_tensor),
             "rendered_views": render_tensor,
             "cat_id": self.items[index].split(sep="/")[0],
             "model_id": self.items[index].split(sep="/")[1],
