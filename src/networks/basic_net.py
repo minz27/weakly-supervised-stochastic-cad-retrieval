@@ -1,12 +1,13 @@
 import torch
 import torch.nn as nn
-from torchvision.models import resnet18
+from torchvision.models import resnet18, resnet50
 
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.resnet = resnet18(pretrained=True)
+        # self.resnet = resnet18(pretrained=True)
+        self.resnet = resnet50(pretrained = True)
         self.pretrained = nn.Sequential(*(list(self.resnet.children())[:-1]))
 
         self.encoder = nn.Sequential(
@@ -41,25 +42,29 @@ class Encoder(nn.Module):
             # nn.Linear(in_features=8192, out_features=1024),
             # nn.ReLU(),
             # nn.Linear(in_features=1024, out_features=512)
-            nn.Linear(in_features=512, out_features=512),
+            # Resnet50
+            nn.Linear(in_features=2048, out_features=1024),
             nn.ReLU(),
-            nn.Linear(in_features=512, out_features=512)
+            nn.Linear(in_features=1024, out_features=512)
+            # nn.Linear(in_features=512, out_features=512),
+            # nn.ReLU(),
+            # nn.Linear(in_features=512, out_features=512)
         )
 
-        #self._initialize_weights()    
+        self._initialize_weights()    
 
     def _initialize_weights(self):
         for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-                if m.bias is not None:
-                    nn.init.constant_(m.bias, 0)
+            # if isinstance(m, nn.Conv2d):
+            #     nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            #     if m.bias is not None:
+            #         nn.init.constant_(m.bias, 0)
 
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+            # elif isinstance(m, nn.BatchNorm2d):
+            #     nn.init.constant_(m.weight, 1)
+            #     nn.init.constant_(m.bias, 0)
 
-            elif isinstance(m, nn.Linear):
+            if isinstance(m, nn.Linear):
                 nn.init.normal_(m.weight, 0, 0.01)
                 nn.init.constant_(m.bias, 0)    
 
@@ -67,4 +72,5 @@ class Encoder(nn.Module):
         x = self.pretrained(x)
         x = x.view(x.size(0), -1)
         x = self.embedding(x)
+        x = torch.nn.functional.normalize(x)
         return x             

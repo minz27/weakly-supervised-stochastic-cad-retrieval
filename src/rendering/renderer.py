@@ -8,7 +8,6 @@ from pytorch3d.renderer import (
     MeshRasterizer,
     MeshRenderer,
     PointLights,
-    AmbientLights,
     RasterizationSettings,
     look_at_view_transform,
     SoftPhongShader,
@@ -109,6 +108,7 @@ def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
         image_size=image_size, 
         blur_radius=0.0, 
         faces_per_pixel=1, 
+        cull_backfaces=True,
     )
     
     # Set up light
@@ -119,7 +119,7 @@ def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
             cameras=cameras, 
             raster_settings=raster_settings
         ),
-        shader=SoftPhongShader(
+        shader=HardFlatShader(
             device=device, 
             cameras=cameras,
             lights=lights,

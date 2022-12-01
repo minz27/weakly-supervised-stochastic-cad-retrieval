@@ -23,6 +23,11 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         self.config = config
         
         self.transforms = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.1566, 0.1238, 0.0962],std=[0.2578, 0.2101, 0.1689])
+        ])
+
+        self.to_tensor = transforms.Compose([
             transforms.ToTensor()
         ])
 
@@ -52,7 +57,7 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         mask_path = os.path.join(self.scannet_root, mask.split('/')[0], 'instance', mask.split('/')[1])
 
         mask = Image.open(mask_path).resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
-        mask_tensor = self.transforms(mask)
+        mask_tensor = self.to_tensor(mask)
         
         #Ground truth camera pose
         pose_path = os.path.join(self.scannet_root, pose.split('/')[0], 'pose', pose.split('/')[1])
@@ -95,7 +100,8 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
         self.shapenet_root = shapenet_root                 
         self.config = config
         self.transforms = transforms.Compose([
-            transforms.ToTensor()
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.0700, 0.0700, 0.0700],std=[0.1941, 0.1941, 0.1941])
         ])
 
         with open(split) as f: 
@@ -107,9 +113,10 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
     def __getitem__(self, index):
         # Return rendered n canonical views and normal maps  
         # TODO: take these values from config
-        canonical_azimuth = [0, 60, 120, 180, 240, 300]
+        # canonical_azimuth = [0, 60, 120, 180, 240, 300]
+        canonical_azimuth = [120, 180, 240]
         # canonical_azimuth = [240]
-        dist = 1.0
+        dist = 1.5
 
         mesh_path = os.path.join(self.shapenet_root, self.items[index], "models/model_normalized.obj")
         # Load mesh for normal map rendering

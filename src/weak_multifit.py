@@ -56,25 +56,16 @@ def train(scan_model, shape_model, device, config, scannetloader, shapenetloader
             rendered_views = shape["rendered_views"].squeeze(1).view(-1, 3, config['height'], config['height']).to(device)
             
             #Mask out instances
-            masked_imgs = retrieve_instances(scan["img"], scan["mask"], valid_labels, 2).to(device) #2xNxCxWxH
+            masked_imgs = retrieve_instances(scan["img"], scan["mask"], valid_labels, config['n_instances']).to(device) #2xNxCxWxH
             masked_imgs = masked_imgs.view(-1, 3, config["width"], config["height"]) #(2N)xCxWxH
-            masked_normals = retrieve_instances(scan["normal"], scan["mask"], valid_labels, 2).view(-1, 3, config["width"], config["height"])
+            masked_normals = retrieve_instances(scan["normal"], scan["mask"], valid_labels, config['n_instances']).view(-1, 3, config["width"], config["height"])
             
             #Compute embeddings
             scan_embedding = scan_model(masked_imgs)
             shape_embedding = shape_model(rendered_views)
             
-            #6 should be configurable to number of rendered views
-            # Currently doing this with a for loop and gt normal
-
             histograms = []
 
-            for i in range(masked_normals.shape[0]):
-                instance_normal = (masked_normals[i].permute(1,2,0).detach().cpu().numpy())
-                instance_normal_mask = ((instance_normal[:,:,2] != 0) | (instance_normal[:,:,1] != 0) | (instance_normal[:,:,0] != 0))
-                histograms.append(self_similarity_normal_histogram(instance_normal, instance_normal_mask))
-
-           
             for i in range(shape['normal_maps'].view(-1, 3, config["width"], config["height"]).shape[0]):
                 # shape_normal = transform_normal_map(shape['normal_maps'].squeeze(1).squeeze(1)[i].permute(1,2,0).detach().cpu().numpy(), 
                                                     # shape['R'].squeeze(1).squeeze(1)[1].detach().cpu().numpy(), 
@@ -85,13 +76,19 @@ def train(scan_model, shape_model, device, config, scannetloader, shapenetloader
                 shape_hist = self_similarity_normal_histogram(shape_normal, shape_normal_mask)
                 histograms.append(shape_hist)
 
+            for i in range(masked_normals.shape[0]):
+                instance_normal = (masked_normals[i].permute(1,2,0).detach().cpu().numpy())
+                instance_normal_mask = ((instance_normal[:,:,2] != 0) | (instance_normal[:,:,1] != 0) | (instance_normal[:,:,0] != 0))
+                histograms.append(self_similarity_normal_histogram(instance_normal, instance_normal_mask))
+
             histograms = np.vstack(histograms)
             similarity_matrix = calculate_histogram_similarity_matrix(histograms)
-            
+
             #Generate labels based on similarity scores
             labels = generate_labels(similarity_matrix)
-
-            embeddings = torch.cat([scan_embedding, shape_embedding], dim=0)
+            print(labels)
+            # embeddings = torch.cat([scan_embedding, shape_embedding], dim=0)
+            embeddings = torch.cat([shape_embedding, scan_embedding], dim=0)
             
             loss = criterion(embeddings, labels)
         
