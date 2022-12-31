@@ -24,11 +24,16 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         
         self.transforms = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.1566, 0.1238, 0.0962],std=[0.2578, 0.2101, 0.1689])
+            transforms.Normalize(mean=[0.1162, 0.0915, 0.0714],std=[0.2423, 0.2067, 0.1712])
         ])
 
         self.to_tensor = transforms.Compose([
             transforms.ToTensor()
+        ])
+
+        self.transforms_normal = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=0,std=1)
         ])
 
         with open(split) as f: 
@@ -73,9 +78,9 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         #Ground trurh normals
         normal_path = os.path.join(self.framenet_root, items.split('/')[0], "frame-" + items.split('/')[1] + "-normal.png")
         normal = Image.open(normal_path).resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
-        normal_tensor = -self.transforms(normal) + 0.5
+        normal_tensor = -self.to_tensor(normal) + 0.5
         normal_tensor *= 2
-        # normal_tensor = (scale_tensor(self.transforms(normal), -1, 1))
+        # normal_tensor = self.transforms_normal(normal)
 
         #transform normal to world space here
 
@@ -102,6 +107,10 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
         self.transforms = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.0700, 0.0700, 0.0700],std=[0.1941, 0.1941, 0.1941])
+        ])
+
+        self.transforms_normal = transforms.Compose([
+            transforms.Normalize(mean=0,std=1)
         ])
 
         with open(split) as f: 
@@ -135,7 +144,7 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
 
         for azim in canonical_azimuth:
             normal_map, r, t = render_normalmap(vertices, faces, image_size = self.config["width"] ,device = torch.device(self.config["device"]), azim=azim, dist = dist)
-            normal_maps.append(normal_map)
+            normal_maps.append((normal_map))
             R.append(r)
             T.append(t)
             renders.append(render_view(mesh_pytorch3d,  image_size = self.config["width"], device = torch.device(self.config["device"]), azim=azim, dist=dist))

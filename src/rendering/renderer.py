@@ -16,6 +16,7 @@ from pytorch3d.renderer import (
 from pytorch3d.renderer.blending import BlendParams
 from pytorch3d.renderer.mesh.textures import Textures
 from pytorch3d.structures import Meshes
+from src.data.prepare_data import transform_normal_map
 
 def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30, azim=150):
     """Render world-space normal maps of meshes with a given color + resolution.
@@ -48,7 +49,7 @@ def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30,
     R, T = look_at_view_transform(dist, elev, azim)
     cameras = FoVPerspectiveCameras(device=device, R=R, T=T)
     raster_settings = RasterizationSettings(
-        image_size=image_size, bin_size=[0, None][0], cull_backfaces=True,
+        image_size=image_size, bin_size=[0, None][0], cull_backfaces=False,
     )
 
     rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)

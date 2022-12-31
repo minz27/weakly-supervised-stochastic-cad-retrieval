@@ -6,8 +6,8 @@ class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # self.resnet = resnet18(pretrained=True)
-        self.resnet = resnet50(pretrained = True)
+        self.resnet = resnet18(pretrained=True)
+        # self.resnet = resnet50(pretrained = True)
         self.pretrained = nn.Sequential(*(list(self.resnet.children())[:-1]))
 
         self.encoder = nn.Sequential(
@@ -43,12 +43,12 @@ class Encoder(nn.Module):
             # nn.ReLU(),
             # nn.Linear(in_features=1024, out_features=512)
             # Resnet50
-            nn.Linear(in_features=2048, out_features=1024),
-            nn.ReLU(),
-            nn.Linear(in_features=1024, out_features=512)
-            # nn.Linear(in_features=512, out_features=512),
+            # nn.Linear(in_features=2048, out_features=1024),
             # nn.ReLU(),
-            # nn.Linear(in_features=512, out_features=512)
+            # nn.Linear(in_features=1024, out_features=512)
+            nn.Linear(in_features=512, out_features=512),
+            nn.ReLU(),
+            nn.Linear(in_features=512, out_features=512)
         )
 
         self._initialize_weights()    
