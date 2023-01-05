@@ -16,12 +16,14 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
                 config,
                 scannet_root = "../scannet_frames_25k/", 
                 framenet_root = "../framenet_frames/scannet-frames/",
+                rendering_root = "../Rendering/",
                 split = "src/splits/overfit_scannet_split.txt",
                 ):
         
         self.items = []
         self.scannet_root = scannet_root
         self.framenet_root = framenet_root
+        self.rendering_root = rendering_root
         self.config = config
         
         self.transforms = transforms.Compose([
@@ -54,17 +56,19 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         img_path = os.path.join(self.scannet_root, image.split('/')[0], 'color', image.split('/')[1])
 
         img = Image.open(img_path).convert("RGB").resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
-        img_tensor = self.transforms(img)
+        # img_tensor = self.transforms(img)
+        img_tensor = self.to_tensor(img)
 
         #Delete if not required
         # img_large = Image.open(img_path).convert("RGB").resize(size=(480, 320), resample=Image.BILINEAR)
         # img_tensor_large = self.transforms(img_large)
         
         #Ground truth instance masks
-        mask_path = os.path.join(self.scannet_root, mask.split('/')[0], 'instance', mask.split('/')[1])
+        mask_path = os.path.join(self.rendering_root, mask.split('/')[0], 'instance', mask.split('/')[1])
 
         mask = Image.open(mask_path).resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
-        mask_tensor = self.to_tensor(mask)
+        # mask_tensor = self.to_tensor(mask)
+        mask_tensor = torch.tensor(np.array(mask)).unsqueeze(0)
         
         #Ground truth camera pose
         pose_path = os.path.join(self.scannet_root, pose.split('/')[0], 'pose', pose.split('/')[1])

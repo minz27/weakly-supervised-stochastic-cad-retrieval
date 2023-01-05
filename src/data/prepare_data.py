@@ -35,18 +35,26 @@ def return_valid_instances(mask, label_dict, num_instances):
       
     return labels
 
-def retrieve_instances(color_img, mask, label_dict, num_instances):
+def retrieve_instances(color_img, mask, label_dict, num_instances, frame):
     #TODO convert it to torch, operate on tensors directly
     #call retrieve instances from here
  
     instances = []
+    frame_names = []
+    indices = []
+
     for i in range(mask.shape[0]):
-        labels = return_valid_instances(mask[i], label_dict, num_instances)
+        # labels = return_valid_instances(mask[i], label_dict, num_instances)
+        labels = np.unique(mask[i])
+
         for label in labels:
-            instances.append(mask_instances(color_img[i], mask[i], label))
+            if label != 0:
+                instances.append(mask_instances(color_img[i], mask[i], label))
+                frame_names.append(frame[i])
+                indices.append(label)
 
     instances = torch.stack(instances)
-    return instances
+    return instances, frame_names, indices
 
 def transform_normal_map(normal_map, R):
     '''

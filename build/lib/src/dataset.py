@@ -8,6 +8,8 @@ from src.rendering.renderer import render_normalmap, render_view
 from src.util.normal_similarity import scale_tensor
 import trimesh
 from pytorch3d.io import load_objs_as_meshes
+from pytorch3d.ops import sample_points_from_meshes
+from pytorch3d.loss import chamfer_distance 
 
 class OverfitDatasetScannet(torch.utils.data.Dataset):
     def __init__(self, 
@@ -52,7 +54,8 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         img_path = os.path.join(self.scannet_root, image.split('/')[0], 'color', image.split('/')[1])
 
         img = Image.open(img_path).convert("RGB").resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
-        img_tensor = self.transforms(img)
+        # img_tensor = self.transforms(img)
+        img_tensor = self.to_tensor(img)
 
         #Delete if not required
         # img_large = Image.open(img_path).convert("RGB").resize(size=(480, 320), resample=Image.BILINEAR)
@@ -87,7 +90,7 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         return {
             'img' : img_tensor,
             'mask': mask_tensor,
-            # 'img_large': img_tensor_large,
+            'frame': self.items[index],
             'R': torch.tensor(R),
             'T': torch.tensor(T),
             'normal': (normal_tensor)
@@ -136,6 +139,9 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
         # Load mesh for rendering to given view
         mesh_pytorch3d = load_objs_as_meshes([mesh_path], device=torch.device(self.config["device"]))
 
+        # Sample uniformly from mesh to get a pointcloud
+        pointcloud = sample_points_from_meshes(mesh_pytorch3d, 5000)
+
         #For loop to render for each view
         normal_maps = []
         renders = []
@@ -160,7 +166,8 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
             "cat_id": self.items[index].split(sep="/")[0],
             "model_id": self.items[index].split(sep="/")[1],
             "R": torch.stack(R),
-            "T": torch.stack(T)
+            "T": torch.stack(T),
+            "pointcloud": pointcloud
         }
 
     def __len__(self):
