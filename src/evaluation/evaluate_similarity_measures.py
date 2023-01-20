@@ -21,7 +21,7 @@ from src.util.normal_similarity import self_similarity_normal_histogram, calcula
 from src.data.prepare_data import retrieve_instances, transform_normal_map
 from src.util.losses import VGGPerceptualLoss
 
-K = 3 #Number of nearest neighbours to evaluate
+K = 5 #Number of nearest neighbours to evaluate
 SCAN2CAD_PATH = '/mnt/raid/mdeka/scan2cad/scan2cad_image_alignments.json'
 vggloss = VGGPerceptualLoss()
 
@@ -32,7 +32,7 @@ def loss_to_evaluate(normal_1:torch.tensor, normal_2:torch.tensor,
     '''
     content_loss, style_loss = vggloss(normal_1, normal_2)
     hist_distance = 1 - calculate_histogram_iou(hist_1, hist_2)
-    weighted_distance = (alpha * style_loss + beta * hist_distance)
+    weighted_distance = (alpha * (style_loss / 1000) + beta * hist_distance)
     return weighted_distance, hist_distance, content_loss, style_loss
 
 def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals, shape_batch, alpha:float=1., beta:float=1., gamma:float=0., n_views:int=3)->pd.DataFrame:
@@ -42,24 +42,24 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
     scan_histograms = []
     shape_histograms = []
 
-    print('Calculating scan histograms...')
-    for i in tqdm(range(masked_imgs.shape[0])):
-        scan_normal = masked_normals[i].permute(1,2,0).detach().cpu().numpy()
-        scan_normal_mask = ((scan_normal[:,:,2] != 0) | (scan_normal[:,:,1] != 0) | (scan_normal[:,:,0] != 0))
-        scan_hist = self_similarity_normal_histogram(scan_normal, scan_normal_mask)
-        scan_histograms.append(scan_hist)
+    # print('Calculating scan histograms...')
+    # for i in tqdm(range(masked_imgs.shape[0])):
+    #     scan_normal = masked_normals[i].permute(1,2,0).detach().cpu().numpy()
+    #     scan_normal_mask = ((scan_normal[:,:,2] != 0) | (scan_normal[:,:,1] != 0) | (scan_normal[:,:,0] != 0))
+    #     scan_hist = self_similarity_normal_histogram(scan_normal, scan_normal_mask)
+    #     scan_histograms.append(scan_hist)
 
-    print('Calculating shape histograms...')
-    for i in tqdm(range(shape_normals.shape[0])):
-        shape_normal = shape_normals[i].permute(1,2,0).detach().cpu().numpy()
-        shape_normal_mask = ((shape_normal[:,:,2] != 0) | (shape_normal[:,:,1] != 0) | (shape_normal[:,:,0] != 0))
-        shape_hist = self_similarity_normal_histogram(shape_normal, shape_normal_mask)
-        shape_histograms.append(shape_hist)  
+    # print('Calculating shape histograms...')
+    # for i in tqdm(range(shape_normals.shape[0])):
+    #     shape_normal = shape_normals[i].permute(1,2,0).detach().cpu().numpy()
+    #     shape_normal_mask = ((shape_normal[:,:,2] != 0) | (shape_normal[:,:,1] != 0) | (shape_normal[:,:,0] != 0))
+    #     shape_hist = self_similarity_normal_histogram(shape_normal, shape_normal_mask)
+    #     shape_histograms.append(shape_hist)  
 
-    #Dump histograms to pickle so that we don't have to compute it again
-    with open('src/runs/histograms.pkl', 'wb') as file:
-        all_histograms = (scan_histograms, shape_histograms)
-        pickle.dump(all_histograms, file)    
+    # #Dump histograms to pickle so that we don't have to compute it again
+    # with open('src/runs/histograms.pkl', 'wb') as file:
+    #     all_histograms = (scan_histograms, shape_histograms)
+    #     pickle.dump(all_histograms, file)    
 
     print('Retrieving cached self-similarity histograms...')
     with open('src/runs/histograms.pkl', 'rb') as file:
@@ -71,33 +71,33 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
     all_content_losses = {}
     all_style_losses = {}
 
-    print('Calculating distances...')
-    for i in tqdm(range(len(scan_histograms))):
-        distances = []
-        hist_distances = []
-        content_losses = []
-        style_losses = []
+    # print('Calculating distances...')
+    # for i in tqdm(range(len(scan_histograms))):
+    #     distances = []
+    #     hist_distances = []
+    #     content_losses = []
+    #     style_losses = []
 
-        for j in range(len(shape_histograms)):
-            loss, hist_loss, content_loss, style_loss = loss_to_evaluate(masked_normals[i].unsqueeze(0).cpu(), shape_normals[j].unsqueeze(0).cpu(),
-                                    scan_histograms[i], shape_histograms[j],
-                                    alpha, beta)
-            distances.append(loss)
-            hist_distances.append(hist_loss)
-            content_losses.append(content_loss)
-            style_losses.append(style_loss)
+    #     for j in range(len(shape_histograms)):
+    #         loss, hist_loss, content_loss, style_loss = loss_to_evaluate(masked_normals[i].unsqueeze(0).cpu(), shape_normals[j].unsqueeze(0).cpu(),
+    #                                 scan_histograms[i], shape_histograms[j],
+    #                                 alpha, beta)
+    #         distances.append(loss)
+    #         hist_distances.append(hist_loss)
+    #         content_losses.append(content_loss)
+    #         style_losses.append(style_loss / 1000)
 
-        all_distances[i] = distances
-        all_hist_distances[i] = hist_distances
-        all_content_losses[i] = content_losses
-        all_style_losses[i] = style_losses
+    #     all_distances[i] = distances
+    #     all_hist_distances[i] = hist_distances
+    #     all_content_losses[i] = content_losses
+    #     all_style_losses[i] = style_losses
     
-    with open('src/runs/cached_distances.pkl', 'wb') as file:
-        all_losses = (all_hist_distances, all_content_losses, all_style_losses)
-        pickle.dump(all_losses, file)
+    # with open('src/runs/cached_distances_vgg.pkl', 'wb') as file:
+    #     all_losses = (all_hist_distances, all_content_losses, all_style_losses)
+    #     pickle.dump(all_losses, file)
 
     print('Retrieving cached distances...')
-    with open('src/runs/cached_distances.pkl', 'rb') as file:
+    with open('src/runs/cached_distances_vgg.pkl', 'rb') as file:
         all_hist_distances, all_content_losses, all_style_losses = pickle.load(file)
 
     print('Calculating distance combination...')
@@ -109,7 +109,7 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
         all_distances[k] = [x[0] + x[1] + x[2] for x in zip(hist_distances, style_losses, content_losses)]     
 
     df = pd.DataFrame().from_dict(all_distances, orient='index')
-    df.to_csv('src/runs/distances.csv', index = False) #Saving it so that I don't have to calculate it everytime
+    df.to_csv('src/runs/distances.csv', index = False) #Saving it so that I don't have to calpculate it everytime
 
     nearest_neighbours = {}
 
@@ -128,6 +128,8 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
                 j+=1
                 j_loop+=1
             else:
+                # neighbours.append(shape_name)
+                # j+=1
                 j_loop+=1    
 
         # for j in range(K):
@@ -138,7 +140,7 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
         nearest_neighbours[i] = neighbours        
     
     neighbours_df = pd.DataFrame().from_dict(nearest_neighbours, orient='index')
-    neighbours_df.to_csv('src/runs/neighbours_top3_' + filename, index=False)
+    neighbours_df.to_csv(f'src/runs/neighbours_top{K}_min_' + filename, index=False)
   
     return nearest_neighbours    
 
@@ -158,64 +160,56 @@ def evaluate_similarity_measure(masked_imgs, masked_normals, views, shape_normal
     gt_objects = {}
 
     for i in tqdm(range(len(labels))):
-        objects = scan2cad_img['alignments'][labels[i]]
-        objects_list = []
-        for obj in objects:
-            objects_list.append(obj['catid_cad'] + '/' + obj['id_cad'])
-        gt_objects[i] = objects_list   
+        # objects = scan2cad_img['alignments'][labels[i]]
+        # objects_list = []
+        # for obj in objects:
+        #     objects_list.append(obj['catid_cad'] + '/' + obj['id_cad'])
+        # gt_objects[i] = objects_list   
+        obj = scan2cad_img['alignments'][labels[i]][indices[i] - 1]
+        gt_objects[i] = obj['catid_cad'] + '/' + obj['id_cad']
 
     # Create a mapping between model hash and pointclouds
     mapping = [x[0] + '/'+ x[1] for x in zip(shape['cat_id'], shape['model_id'])] 
     # For each frame find the chamfer distance between ground truth and nearest neighbours
-    min_chamfer_distances = []
-    max_chamfer_distances = []
+    chamfer_distances = []
+    
     for i in tqdm(range(len(labels))):
         retrievals = nearest_neighbours[i]
         gt_obj = gt_objects[i]   
         min_chamfer = 1e5
         max_chamfer = 0
         # Use the model IDs to fetch the pointclouds and get the minimum distance
-        for obj in gt_obj:
-            for ret_obj in retrievals:
-                # R, T, S = corresponding_points_alignment(shape['pointcloud'][mapping.index(obj)], shape['pointcloud'][mapping.index(ret_obj)])
-                # transformed_pcl = S*((R.squeeze(0) @ torch.permute(shape['pointcloud'][mapping.index(obj)].squeeze(0), (1,0))).permute(1,0))
-                chamfer = chamfer_distance(shape['pointcloud'][mapping.index(obj)], shape['pointcloud'][mapping.index(ret_obj)])
-                # chamfer = chamfer_distance(transformed_pcl.unsqueeze(0), shape['pointcloud'][mapping.index(ret_obj)])
-                if chamfer[0].item() < min_chamfer:
-                    min_chamfer = chamfer[0].item()
-                if chamfer[0].item() > max_chamfer:
-                    max_chamfer = chamfer[0].item()    
-
-        min_chamfer_distances.append(min_chamfer)
-        max_chamfer_distances.append(max_chamfer)
+        for ret_obj in retrievals:
+            # R, T, S = corresponding_points_alignment(shape['pointcloud'][mapping.index(obj)], shape['pointcloud'][mapping.index(ret_obj)])
+            # transformed_pcl = S*((R.squeeze(0) @ torch.permute(shape['pointcloud'][mapping.index(obj)].squeeze(0), (1,0))).permute(1,0))
+            chamfer = chamfer_distance(shape['pointcloud'][mapping.index(gt_obj)], shape['pointcloud'][mapping.index(ret_obj)])
+            # chamfer = chamfer_distance(transformed_pcl.unsqueeze(0), shape['pointcloud'][mapping.index(ret_obj)])
+            # sum_chamfer += chamfer[0].item()
+            if chamfer[0].item() < min_chamfer:
+                min_chamfer = chamfer[0].item()
+    
+        chamfer_distances.append(min_chamfer)
+        # chamfer_distances.append(sum_chamfer / K)
 
     filename = '_' + str(alpha) + '_' + str(beta) + '_' + str(gamma) + '.pkl'
     
     # with open('src/runs/chamfer' + filename, 'wb') as file:
     #     pickle.dump(min_chamfer_distances, file)
-    min_chamfer_distances = np.array(min_chamfer_distances)
-    max_chamfer_distances = np.array(max_chamfer_distances)
+    chamfer_distances = np.array(chamfer_distances)
     
-    print("Mean chamfer distance%s, %s"%(min_chamfer_distances.mean(), max_chamfer_distances.mean()))
-    return min_chamfer_distances.mean(), max_chamfer_distances.mean()
+    print("Mean chamfer distance%s"%(chamfer_distances.mean()))
+    return chamfer_distances.mean()
 
 if __name__=='__main__':
     config = {
     "width": 240,
-    "height": 240,
+    "height": 180,
     "device": 'cuda:0',
     "batch_size": 4,
     "n_instances": 2
     }
 
-    # Download all the framenet files for my split first -> important
-    # For now, I'll simply try with overfitdataset
-    # Since I havent figured out how to retrieve the masks from scan2cad yet
-    # my goal right now is to 
-    #    1. retrieve the k nearest objects for each masked object in the image
-    #    2. for each of the k objects - find the object in ground truth that is closest to it
-    #    3. get chamfer distance of the normalised objects and store it
-    #    4. plot a few random images and retrieved neighbours to get a feel of what's happening
+    results_file = f'results_top_{K}.csv'
 
     scannet = OverfitDatasetScannet(config, split="src/splits/evaluate_scannet_split.txt")
     shapenet = OverfitDatasetShapenet(config, split="src/splits/evaluate_shapenet_split.txt")
@@ -230,33 +224,33 @@ if __name__=='__main__':
     ]
 
     scan = next(iter(scannetloader))
-    masked_imgs, labels. indices = retrieve_instances(scan["img"], scan["mask"], valid_labels, config["n_instances"], scan['frame']) #2xNxCxWxH
-    # masked_imgs = masked_imgs.view(-1, 3, config["width"], config["height"]) #(2N)xCxWxH
-    # masked_normals = retrieve_instances(scan["normal"], scan["mask"], valid_labels, config['n_instances'], scan['frame'])[0].view(-1, 3, config["width"], config["height"])
-    masked_normals = retrieve_instances(scan["normal"], scan["mask"], valid_labels, config['n_instances'], scan['frame'])[0]  
+    masked_imgs, labels, indices = retrieve_instances(scan["img"], scan["mask"], valid_labels, config["n_instances"], scan['frame']) #2xNxCxWxH
+    masked_imgs = masked_imgs.view(-1, 3, config["height"], config["width"]) #(2N)xCxWxH
+    masked_normals = retrieve_instances(scan["normal"], scan["mask"], valid_labels, config['n_instances'], scan['frame'])[0].view(-1, 3, config["height"], config["width"])
+    # masked_normals = retrieve_instances(scan["normal"], scan["mask"], valid_labels, config['n_instances'], scan['frame'])[0]  
 
     try:                
         shape = next(iter(shapenetloader))
     except:
         shape = next(iter(shapenetloader))
 
-    views = shape['rendered_views'].view(-1,3,config["width"], config["height"])
-    shape_normals = shape['normal_maps'].view(-1, 3, config["width"], config["height"])
+    views = shape['rendered_views'].view(-1,3,config["width"], config["width"])
+    shape_normals = shape['normal_maps'].view(-1, 3, config["width"], config["width"])
 
     n_views = shape['rendered_views'].shape[2] #No of views for each model
 
     # Try out different parameters
-    alphas = [0, 0.25, 0.5, 0.75]
-    betas = [0.25, 0.5, 0.75]
-    gammas = [0.3, 0.6, 0.9]
+    alphas = [0, 0.25, 0.5, 0.75, 1]
+    betas = [0, 0.25, 0.5, 0.75, 1]
+    gammas = [0, 0.25, 0.5, 0.75, 1]
 
-    with open('results_top_3.csv', 'w') as file:
-        file.write('alpha,beta,gamma,min_chamfer_distance,max_chamfer_distance\n')
+    with open(results_file, 'w') as file:
+        file.write('alpha,beta,gamma,chamfer_distance\n')
 
     for alpha in alphas:
         for beta in betas:
             for gamma in gammas:
                 print('Evaluating %s %s %s'%(alpha, beta, gamma))    
-                min_loss, max_loss = evaluate_similarity_measure(masked_imgs, masked_normals, views, shape_normals, shape, scan, n_views, labels, indices, alpha, beta, gamma) 
-                with open('results_top_3.csv', 'a') as file:
-                    file.write('%s,%s,%s,%s,%s\n'%(alpha, beta, gamma, min_loss, max_loss))  
+                loss = evaluate_similarity_measure(masked_imgs, masked_normals, views, shape_normals, shape, scan, n_views, labels, indices, alpha, beta, gamma) 
+                with open(results_file, 'a') as file:
+                    file.write('%s,%s,%s,%s\n'%(alpha, beta, gamma, loss))  

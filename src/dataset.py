@@ -28,7 +28,7 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         
         self.transforms = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.1162, 0.0915, 0.0714],std=[0.2423, 0.2067, 0.1712])
+            transforms.Normalize(mean=[0.1294, 0.0963, 0.0718],std=[0.2288, 0.1779, 0.1363])
         ])
 
         self.to_tensor = transforms.Compose([
@@ -128,8 +128,8 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
     def __getitem__(self, index):
         # Return rendered n canonical views and normal maps  
         # TODO: take these values from config
-        # canonical_azimuth = [0, 60, 120, 180, 240, 300]
-        canonical_azimuth = [120, 180, 240]
+        canonical_azimuth = [0, 60, 120, 180, 240, 300]
+        # canonical_azimuth = [120, 180, 240]
         # canonical_azimuth = [240]
         dist = 1.5
 
@@ -162,10 +162,9 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
         # render_tensor = torch.stack(renders).permute(1,0,2,3,4) 
         normal_tensor = torch.stack(normal_maps).permute(1,0,4,2,3)
         render_tensor = torch.stack(renders).permute(1,0,4,2,3) 
-
         return {
-            "normal_maps": (normal_tensor),
-            "rendered_views": render_tensor,
+            "normal_maps": (normal_tensor.cpu()),
+            "rendered_views": render_tensor.cpu(),
             "cat_id": self.items[index].split(sep="/")[0],
             "model_id": self.items[index].split(sep="/")[1],
             "R": torch.stack(R),

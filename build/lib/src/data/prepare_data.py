@@ -41,15 +41,20 @@ def retrieve_instances(color_img, mask, label_dict, num_instances, frame):
  
     instances = []
     frame_names = []
-    for i in range(mask.shape[0]):
-        labels = return_valid_instances(mask[i], label_dict, num_instances)
+    indices = []
 
-        for label in labels:
-            instances.append(mask_instances(color_img[i], mask[i], label))
-            frame_names.append(frame[i])
+    for i in range(mask.shape[0]):
+        # labels = return_valid_instances(mask[i], label_dict, num_instances)
+        labels,counts = np.unique(mask[i], return_counts=True)
+
+        for label, count in zip(labels,counts):
+            if (label != 0) and (count > 0.1 * 180 * 240):
+                instances.append(mask_instances(color_img[i], mask[i], label))
+                frame_names.append(frame[i])
+                indices.append(label)
 
     instances = torch.stack(instances)
-    return instances, frame_names
+    return instances, frame_names, indices
 
 def transform_normal_map(normal_map, R):
     '''

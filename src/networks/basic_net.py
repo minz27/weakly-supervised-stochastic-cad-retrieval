@@ -47,8 +47,8 @@ class Encoder(nn.Module):
             # nn.ReLU(),
             # nn.Linear(in_features=1024, out_features=512)
             nn.Linear(in_features=512, out_features=512),
-            nn.ReLU(),
-            nn.Linear(in_features=512, out_features=512)
+            # nn.ReLU(),
+            # nn.Linear(in_features=512, out_features=512)
         )
 
         self._initialize_weights()    

@@ -48,8 +48,11 @@ def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30,
     # Initialize a camera.
     R, T = look_at_view_transform(dist, elev, azim)
     cameras = FoVPerspectiveCameras(device=device, R=R, T=T)
+    # raster_settings = RasterizationSettings(
+    #     image_size=image_size, bin_size=[0, None][0], cull_backfaces=False,
+    # )
     raster_settings = RasterizationSettings(
-        image_size=image_size, bin_size=[0, None][0], cull_backfaces=False,
+        image_size=image_size, bin_size=0, cull_backfaces=False,
     )
 
     rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
@@ -108,6 +111,7 @@ def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):
     raster_settings = RasterizationSettings(
         image_size=image_size, 
         blur_radius=0.0, 
+        bin_size = 0,
         faces_per_pixel=1, 
         cull_backfaces=True,
     )

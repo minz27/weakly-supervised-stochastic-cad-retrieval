@@ -63,18 +63,18 @@ def calculate_histogram_similarity_matrix(histograms, eps = 1e-5):
     # return np.sum(intersection, axis=2)
     return similarity_matrix
 
-def calculate_perceptual_similarity_matrix(image_tensor, normal_tensor, vggloss, alpha:float, gamma:float):
+def calculate_perceptual_similarity_matrix(image_tensor, normal_tensor, vggloss, beta:float, gamma:float):
     '''
     Brute force now, to be vectorised later    
     '''
-    similarity_matrix = torch.zeros([image_tensor.shape[0], image_tensor.shape[0]])
+    similarity_matrix = torch.zeros([normal_tensor.shape[0], normal_tensor.shape[0]])
 
-    for i in range(image_tensor.shape[0]):
-        for j in range(image_tensor.shape[1]):
-            similarity_matrix[i, j] = alpha * vggloss(image_tensor[i].unsqueeze(0), image_tensor[j].unsqueeze(0)) + gamma * angular_loss(normal_tensor[i], normal_tensor[j])
+    for i in range(normal_tensor.shape[0]):
+        for j in range(normal_tensor.shape[0]):
+            content_loss, style_loss = vggloss(normal_tensor[i].unsqueeze(0), normal_tensor[j].unsqueeze(0))
+            similarity_matrix[i, j] = beta * style_loss + gamma * content_loss
 
-
-    return 1 - similarity_matrix.detach().cpu().numpy()
+    return similarity_matrix.detach().cpu().numpy()
 
 def scale_tensor(tensor, a = -1, b = 1):
     '''
@@ -85,7 +85,42 @@ def scale_tensor(tensor, a = -1, b = 1):
     '''
     return (a + ((tensor - tensor.min())*(b - a)) / (tensor.max() - tensor.min()))    
 
-def generate_labels(similarity_matrix):
+# def generate_labels(similarity_matrix):
+#     '''
+#     Args:
+#         similarity_matrix: numpy.ndarray of shape (N, N)
+#     Returns:
+#         labels: torch.tensor of shape (N)    
+#     '''
+#     label = 0
+#     labels = [-1 for x in similarity_matrix[0]]
+
+#     explored_nodes = []
+#     for i in range(similarity_matrix.shape[0]):
+#         #print(np.argwhere(similarity_matrix[i] > 0.6))
+#         if i not in explored_nodes:
+#             explored_nodes.append(i)
+#             labels[i] = label
+#             threshold = np.quantile(similarity_matrix[i], 0.3)
+#             discovered_nodes = np.argwhere(similarity_matrix[i] <= threshold)
+
+#             for node in discovered_nodes:
+#                 if node[0] not in explored_nodes:
+#                     labels[node[0]] = label
+#                     explored_nodes.append(node[0])
+#             label += 1
+#         else:
+#             threshold = np.quantile(similarity_matrix[i], 0.3)
+#             discovered_nodes = np.argwhere(similarity_matrix[i] <= threshold)  
+#             for node in discovered_nodes:
+#                 if node[0] not in explored_nodes:
+#                     labels[node[0]] = labels[i]
+#                     explored_nodes.append(node[0])    
+#     return torch.tensor(labels)    
+
+
+#Force each frame to have a different label
+def generate_labels(similarity_matrix, n_frames:int):
     '''
     Args:
         similarity_matrix: numpy.ndarray of shape (N, N)
@@ -96,22 +131,35 @@ def generate_labels(similarity_matrix):
     labels = [-1 for x in similarity_matrix[0]]
 
     explored_nodes = []
-    for i in range(similarity_matrix.shape[0]):
+    #TODO: Optimise and get rid of this loop
+    for i in range(n_frames):
+        labels[i] = i
+        explored_nodes.append(i)
+        threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
+        discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)
+        for node in discovered_nodes:
+            if node[0] not in explored_nodes:
+                labels[node[0]] = i
+                explored_nodes.append(node[0])
+    
+    label = n_frames
+    
+    for i in range(n_frames,similarity_matrix.shape[0]):
         #print(np.argwhere(similarity_matrix[i] > 0.6))
         if i not in explored_nodes:
             explored_nodes.append(i)
             labels[i] = label
-            threshold = np.quantile(similarity_matrix[i], 0.8)
-            discovered_nodes = np.argwhere(similarity_matrix[i] >= threshold)
-            
+            threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
+            discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)
+
             for node in discovered_nodes:
                 if node[0] not in explored_nodes:
                     labels[node[0]] = label
                     explored_nodes.append(node[0])
             label += 1
         else:
-            threshold = np.quantile(similarity_matrix[i], 0.85)
-            discovered_nodes = np.argwhere(similarity_matrix[i] >= threshold)  
+            threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
+            discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)  
             for node in discovered_nodes:
                 if node[0] not in explored_nodes:
                     labels[node[0]] = labels[i]
