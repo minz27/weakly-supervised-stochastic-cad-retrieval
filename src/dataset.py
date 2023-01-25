@@ -4,12 +4,48 @@ import torch
 import torchvision.transforms as transforms
 import json
 import os
-from src.rendering.renderer import render_normalmap, render_view 
+from src.rendering.renderer import render_normalmap, render_view
 from src.util.normal_similarity import scale_tensor
 import trimesh
+from trimesh.repair import fix_inversion, fix_normals
 from pytorch3d.io import load_objs_as_meshes
 from pytorch3d.ops import sample_points_from_meshes
 from pytorch3d.loss import chamfer_distance 
+
+def as_mesh(scene_or_mesh):
+    """
+    Convert a possible scene to a mesh.
+
+    If conversion occurs, the returned mesh has only vertex and face data.
+    """
+    if isinstance(scene_or_mesh, trimesh.Scene):
+        if len(scene_or_mesh.geometry) == 0:
+            mesh = None  # empty scene
+        else:
+            # we lose texture information here
+            mesh = trimesh.util.concatenate(
+                tuple(trimesh.Trimesh(vertices=g.vertices, faces=g.faces)
+                    for g in scene_or_mesh.geometry.values()))
+    else:
+        assert(isinstance(scene_or_mesh, trimesh.Trimesh))
+        mesh = scene_or_mesh
+    return mesh
+
+def custom_load_obj(filename_obj):
+    obj_info = trimesh.load(filename_obj, file_type='obj', process=False)
+    if type(obj_info) is trimesh.Scene:
+        geo_keys = list(obj_info.geometry.keys())
+        total_vert = []
+        total_faces = []
+        for gk in geo_keys:
+            cur_geo = obj_info.geometry[gk]
+            cur_vert = cur_geo.vertices.tolist()
+            cur_face = np.array(cur_geo.faces.tolist())+len(total_vert)
+            total_vert += cur_vert
+            total_faces += cur_face.tolist()
+        return np.array(total_vert).astype("float32"), np.array(total_faces).astype("int32")
+    else:
+        return np.array(obj_info.vertices).astype("float32"), np.array(obj_info.faces).astype("int32")    
 
 class OverfitDatasetScannet(torch.utils.data.Dataset):
     def __init__(self, 
@@ -135,10 +171,16 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
 
         mesh_path = os.path.join(self.shapenet_root, self.items[index], "models/model_normalized.obj")
         # Load mesh for normal map rendering
-        mesh_trimesh = trimesh.load(mesh_path, force='mesh')
-        vertices = torch.tensor(mesh_trimesh.vertices).unsqueeze(dim = 0)
-        faces = torch.tensor(mesh_trimesh.faces).unsqueeze(dim = 0)
-
+        # mesh_trimesh = trimesh.load(mesh_path, file_type='obj', force='mesh')
+        # mesh_trimesh = as_mesh(mesh_trimesh)
+        vertices, faces = custom_load_obj(mesh_path)
+        # fix_normals(mesh_trimesh)
+        # vertices = mesh_trimesh.vertices
+        vertices = vertices - (vertices.max(0) + vertices.min(0)) / 2
+        # vertices = torch.tensor(mesh_trimesh.vertices).unsqueeze(dim = 0)
+        vertices = torch.tensor(vertices).unsqueeze(dim=0).cuda()
+        # faces = torch.tensor(mesh_trimesh.faces).unsqueeze(dim = 0).cuda()
+        faces = torch.tensor(faces).unsqueeze(dim = 0).cuda()
         # Load mesh for rendering to given view
         mesh_pytorch3d = load_objs_as_meshes([mesh_path], device=torch.device(self.config["device"]))
 
