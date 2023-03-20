@@ -12,7 +12,7 @@ def write_splits(scannet_dir: str, target_dir:str, scan2cad_path:str):
         for frame in (scene / 'color').iterdir():
             files.append(frame)
     
-    selected_frames = random.choices(files, k = 100)
+    selected_frames = random.choices(files, k = 2000)
     selected_frames = [str(x).split('/')[5] + '/' +  str(x).split('/')[7].split('.')[0] for x in selected_frames]
     
     #Get objects from scan2cad dataset for each scannet frame

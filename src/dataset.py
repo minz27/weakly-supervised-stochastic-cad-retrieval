@@ -12,6 +12,8 @@ from pytorch3d.io import load_objs_as_meshes
 from pytorch3d.ops import sample_points_from_meshes
 from pytorch3d.loss import chamfer_distance 
 
+DEFAULT_WIDTH, DEFAULT_HEIGHT = 480, 360
+
 def as_mesh(scene_or_mesh):
     """
     Convert a possible scene to a mesh.
@@ -39,6 +41,7 @@ def custom_load_obj(filename_obj):
         total_faces = []
         for gk in geo_keys:
             cur_geo = obj_info.geometry[gk]
+            # fix_normals(cur_geo)
             cur_vert = cur_geo.vertices.tolist()
             cur_face = np.array(cur_geo.faces.tolist())+len(total_vert)
             total_vert += cur_vert
@@ -64,7 +67,7 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         
         self.transforms = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.1294, 0.0963, 0.0718],std=[0.2288, 0.1779, 0.1363])
+            transforms.Normalize(mean=[0.1916, 0.1672, 0.1240],std=[0.3018, 0.2613, 0.2035])
         ])
 
         self.to_tensor = transforms.Compose([
@@ -91,7 +94,7 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
 
         img_path = os.path.join(self.scannet_root, image.split('/')[0], 'color', image.split('/')[1])
 
-        img = Image.open(img_path).convert("RGB").resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
+        img = Image.open(img_path).convert("RGB").resize(size=(DEFAULT_WIDTH, DEFAULT_HEIGHT), resample=Image.BILINEAR)
         # img_tensor = self.transforms(img)
         img_tensor = self.to_tensor(img)
 
@@ -102,7 +105,7 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         #Ground truth instance masks
         mask_path = os.path.join(self.rendering_root, mask.split('/')[0], 'instance', mask.split('/')[1])
 
-        mask = Image.open(mask_path).resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
+        mask = Image.open(mask_path).resize(size=(DEFAULT_WIDTH, DEFAULT_HEIGHT), resample=Image.BILINEAR)
         # mask_tensor = self.to_tensor(mask)
         mask_tensor = torch.tensor(np.array(mask)).unsqueeze(0)
         
@@ -119,7 +122,7 @@ class OverfitDatasetScannet(torch.utils.data.Dataset):
         
         #Ground trurh normals
         normal_path = os.path.join(self.framenet_root, items.split('/')[0], "frame-" + items.split('/')[1] + "-normal.png")
-        normal = Image.open(normal_path).resize(size=(self.config["width"], self.config["height"]), resample=Image.BILINEAR)
+        normal = Image.open(normal_path).resize(size=(DEFAULT_WIDTH, DEFAULT_HEIGHT), resample=Image.BILINEAR)
         normal_tensor = -self.to_tensor(normal) + 0.5
         normal_tensor *= 2
         # normal_tensor = self.transforms_normal(normal)
@@ -164,10 +167,10 @@ class OverfitDatasetShapenet(torch.utils.data.Dataset):
     def __getitem__(self, index):
         # Return rendered n canonical views and normal maps  
         # TODO: take these values from config
+        # canonical_azimuth = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]
         canonical_azimuth = [0, 60, 120, 180, 240, 300]
-        # canonical_azimuth = [120, 180, 240]
         # canonical_azimuth = [240]
-        dist = 1.5
+        dist = 1.
 
         mesh_path = os.path.join(self.shapenet_root, self.items[index], "models/model_normalized.obj")
         # Load mesh for normal map rendering
