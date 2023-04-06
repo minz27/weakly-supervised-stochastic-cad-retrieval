@@ -73,3 +73,33 @@ class VGGPerceptualLoss(torch.nn.Module):
         
         # return content_loss[0,0], style_loss
         return content_loss, style_loss
+
+class TripletMarginLossWithNegativeMining(nn.Module):
+    def __init__(self, margin=1.0, negative_ratio=0.5):
+        super(TripletMarginLossWithNegativeMining, self).__init__()
+        self.margin = margin
+        self.negative_ratio = negative_ratio
+        
+    def forward(self, anchor, positive, negative):
+        # Compute pairwise distances between anchor, positive, and negative embeddings
+        pos_dist = torch.sum(torch.pow(anchor - positive, 2), dim=1)
+        neg_dist = torch.sum(torch.pow(anchor.unsqueeze(1) - negative.unsqueeze(0), 2), dim=2)
+        
+        # Compute the loss for each triplet
+        loss = torch.clamp(self.margin + pos_dist - neg_dist, min=0.0)
+        
+        # Select hard negative examples for each anchor-positive pair
+        num_hard_negatives = int(self.negative_ratio * loss.size(0))
+        hard_negatives = []
+        for i in range(loss.size(0)):
+            # Select the k hardest negatives for the current anchor-positive pair
+            _, hard_neg_indices = torch.topk(neg_dist[i], k=num_hard_negatives, largest=False)
+            hard_negatives.append(negative[hard_neg_indices])
+        hard_negatives = torch.cat(hard_negatives, dim=0)
+        
+        # Compute the loss with the hard negative examples
+        hard_neg_dist = torch.sum(torch.pow(anchor.unsqueeze(1) - hard_negatives.unsqueeze(0), 2), dim=2)
+        hard_neg_loss = torch.clamp(self.margin + pos_dist.unsqueeze(1) - hard_neg_dist, min=0.0)
+        loss = torch.mean(loss + torch.mean(hard_neg_loss, dim=1))
+        
+        return loss

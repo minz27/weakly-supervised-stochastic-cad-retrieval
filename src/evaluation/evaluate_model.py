@@ -9,7 +9,7 @@ from pytorch3d.loss import chamfer_distance
 from tqdm import tqdm
 from typing import Tuple
 
-K = 3
+K = 1
 def collate_fn_val_scannet(batch):
     batch = list(filter(lambda x : x is not None, batch))
     if len(batch) == 0:

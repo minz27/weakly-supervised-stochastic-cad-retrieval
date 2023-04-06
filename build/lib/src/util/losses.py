@@ -32,7 +32,7 @@ class VGGPerceptualLoss(torch.nn.Module):
         self.transform = torch.nn.functional.interpolate
         self.resize = resize
 
-    def forward(self, input, target, feature_layers=[0, 1, 2, 3], style_layers=[0, 1, 2, 3]):
+    def forward(self, input, target, feature_layers=[3], style_layers=[0,1,2]):
         if input.shape[1] != 3:
             input = input.repeat(1, 3, 1, 1)
             target = target.repeat(1, 3, 1, 1)

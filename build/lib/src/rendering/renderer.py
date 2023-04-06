@@ -16,7 +16,8 @@ from pytorch3d.renderer import (
 from pytorch3d.renderer.blending import BlendParams
 from pytorch3d.renderer.mesh.textures import Textures
 from pytorch3d.structures import Meshes
-from src.data.prepare_data import transform_normal_map
+from src.data.prepare_data import transform_normal_map 
+from src.util.normal_similarity import scale_tensor
 
 def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30, azim=150):
     """Render world-space normal maps of meshes with a given color + resolution.
@@ -48,12 +49,12 @@ def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30,
     # Initialize a camera.
     R, T = look_at_view_transform(dist, elev, azim)
     cameras = FoVPerspectiveCameras(device=device, R=R, T=T)
-    # raster_settings = RasterizationSettings(
-    #     image_size=image_size, bin_size=[0, None][0], cull_backfaces=False,
-    # )
     raster_settings = RasterizationSettings(
-        image_size=image_size, bin_size=0, cull_backfaces=False,
+        image_size=image_size, bin_size=[0, None][0], cull_backfaces=False,
     )
+    # raster_settings = RasterizationSettings(
+    #     image_size=image_size, bin_size=0, cull_backfaces=False,
+    # )
 
     rasterizer = MeshRasterizer(cameras=cameras, raster_settings=raster_settings)
     fragments = rasterizer(mesh)
@@ -72,7 +73,8 @@ def render_normalmap(vertices, faces, device, image_size=128, dist=1.0, elev=30,
     normal_maps = phong_normal_shading(mesh, fragments)
     normal_maps = normal_maps.min(dim=-2)[0][:, :, :, [2,1,0]]
     # normal_maps = normal_maps.min(dim=-2)[0][:, :, :, :]
-
+    # normal_maps = (normal_maps / 3).to(device)
+    # normal_maps = scale_tensor(normal_maps)
     return abs(normal_maps / 3).to(device), R, T
 
 def render_view(mesh, device, image_size=128, dist=1.0, elev=30, azim=150):

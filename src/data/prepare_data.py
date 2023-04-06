@@ -83,6 +83,7 @@ def crop_bbox(image, frame, label, R, rotate, width, height):
                     bbox = i['bbox']
                     bbox = [int(x) for x in bbox]
                     category = i['model']['catid_cad']
+                    model_id = i['model']['id_cad']
                     break
 
     except KeyError:
@@ -93,10 +94,11 @@ def crop_bbox(image, frame, label, R, rotate, width, height):
                     bbox = i['bbox']
                     bbox = [int(x) for x in bbox]
                     category = i['model']['catid_cad']
+                    model_id = i['model']['id_cad']
                     break
 
     if len(bbox) == 0:
-        return torch.zeros(size=(1,0)), ''
+        return torch.zeros(size=(1,0)), '', ''
     cropped_image = image[bbox[1]:bbox[1] + bbox[3],bbox[0]:bbox[0] + bbox[2],:]
     cropped_image = (SquarePad()(cropped_image.permute(2,0,1))).permute(1,2,0)
     if rotate:
@@ -113,10 +115,10 @@ def crop_bbox(image, frame, label, R, rotate, width, height):
         # print(cropped_image[0].permute().shape)
         # cropped_image = cropped_image[0].permute(1,2,0) @ np.linalg.inv(alignment[:3,:3]) @ np.linalg.inv((R).double().cpu()) @ (to_scannet[:3, :3])
         cropped_image = scale_tensor(cropped_image[0].permute(1,2,0) @ np.linalg.inv(alignment[:3,:3]) @ (to_scannet[:3, :3]) @ ((R).double().cpu()))
-        return ((cropped_image.permute(2,0,1)))
+        return ((cropped_image.permute(2,0,1))), category, model_id
     # cropped_image = transforms.ToPILImage()
     # return resize_bbox_transform(cropped_image.permute(2,0,1))
-    return torch.nn.functional.interpolate(cropped_image.permute(2,0,1).unsqueeze(0), mode='bilinear', size=(height, width), align_corners=False), category
+    return torch.nn.functional.interpolate(cropped_image.permute(2,0,1).unsqueeze(0), mode='bilinear', size=(height, width), align_corners=False), category, model_id
 
 
 def mask_instances(color_img, instance, label):
@@ -150,7 +152,7 @@ def return_valid_instances(mask, label_dict, num_instances):
       
     return labels
 
-def retrieve_instances(color_img, mask, label_dict, num_instances, frame, R, rotate=True, width=224, height=224, retrieve=False):
+def retrieve_instances(color_img, mask, label_dict, num_instances, frame, R, rotate=True, width=224, height=224, retrieve=False, to_mask=True):
     #TODO convert it to torch, operate on tensors directly
     #call retrieve instances from here
  
@@ -158,34 +160,41 @@ def retrieve_instances(color_img, mask, label_dict, num_instances, frame, R, rot
     frame_names = []
     indices = []
     categories = []
+    model_ids = []
     for i in range(mask.shape[0]):
         # labels = return_valid_instances(mask[i], label_dict, num_instances)
         labels,counts = np.unique(mask[i], return_counts=True)
 
         for label, count in zip(labels,counts):
             if (not retrieve) and (label != 0) and (count > 0.2 * 224 * 224):
-                # masked_instance = mask_instances(color_img[i], mask[i], label)
-                masked_instance = color_img[i] 
-                cropped_instance, category = crop_bbox(masked_instance.permute(1,2,0), frame[i], label, R[i], rotate, width, height)
+                if to_mask:
+                    masked_instance = mask_instances(color_img[i], mask[i], label)
+                else:
+                    masked_instance = color_img[i] 
+                cropped_instance, category, model_id = crop_bbox(masked_instance.permute(1,2,0), frame[i], label, R[i], rotate, width, height)
                 if cropped_instance.nelement() != 0:
                     instances.append(cropped_instance)
                     frame_names.append(frame[i])
                     indices.append(label)
                     categories.append(category)
-            elif (retrieve) and (label != 0) and (count > 0.1*224*224):        
-                # masked_instance = mask_instances(color_img[i], mask[i], label) 
-                masked_instance = color_img[i]
-                cropped_instance, category = crop_bbox(masked_instance.permute(1,2,0), frame[i], label, R[i], rotate, width, height)
+                    model_ids.append(model_id)
+            elif (retrieve) and (label != 0) and (count > 0.1*224*224): 
+                if to_mask:       
+                    masked_instance = mask_instances(color_img[i], mask[i], label)
+                else:     
+                    masked_instance = color_img[i]
+                cropped_instance, category, model_id = crop_bbox(masked_instance.permute(1,2,0), frame[i], label, R[i], rotate, width, height)
                 if cropped_instance.nelement() != 0:
                     instances.append(cropped_instance)
                     frame_names.append(frame[i])
                     indices.append(label)
                     categories.append(category)
+                    model_ids.append(model_id)
     if len(instances) != 0:
         instances = torch.stack(instances)
     else:
         instances = torch.empty(0, 0, width, height)
-    return instances, frame_names, indices, categories
+    return instances, frame_names, indices, categories, model_ids
 
 def transform_normal_map(normal_map, R):
     '''
@@ -201,7 +210,7 @@ def transform_normal_map(normal_map, R):
     transformed_normals = np.apply_along_axis(np.linalg.inv(R).dot, 2, normal_map)
     return transformed_normals
 
-def mesh_to_voxel(vertices, faces, resolution, size, fill=False, crop=False):
+def mesh_to_voxel(vertices, faces, resolution, size, fill=True, crop=False):
     """Voxelize a 0-centered mesh.
     All vertices must lie in a cube: [-size, size]^3
     Parameters

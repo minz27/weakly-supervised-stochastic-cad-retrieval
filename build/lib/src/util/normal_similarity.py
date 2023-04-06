@@ -9,7 +9,7 @@ def self_similarity_normal_histogram(nmap, mask,box=None):
     # box: a box with shape [4,]
     # author: Weicheng Kuo (weicheng@google.com)
 
-    num_bins = 5  # Bins for cosine value between [-1, 1].
+    num_bins = 16  # Bins for cosine value between [-1, 1].
     bin_vect = np.linspace(0, math.pi, num=num_bins + 1)
     if box is not None:
         ymin, xmin, ymax, xmax = box
@@ -72,7 +72,7 @@ def calculate_perceptual_similarity_matrix(image_tensor, normal_tensor, vggloss,
     for i in range(normal_tensor.shape[0]):
         for j in range(normal_tensor.shape[0]):
             content_loss, style_loss = vggloss(normal_tensor[i].unsqueeze(0), normal_tensor[j].unsqueeze(0))
-            similarity_matrix[i, j] = beta * style_loss + gamma * content_loss
+            similarity_matrix[i, j] = beta * (style_loss/10000) + gamma * content_loss
 
     return similarity_matrix.detach().cpu().numpy()
 
@@ -83,7 +83,8 @@ def scale_tensor(tensor, a = -1, b = 1):
     Returns:
         Pytorch tensor with the values scaled to be in [a,b]    
     '''
-    return (a + ((tensor - tensor.min())*(b - a)) / (tensor.max() - tensor.min()))    
+    scaled_tensor =  (a + ((tensor - tensor.min())*(b - a)) / (tensor.max() - tensor.min()))
+
 
 # def generate_labels(similarity_matrix):
 #     '''
@@ -120,7 +121,53 @@ def scale_tensor(tensor, a = -1, b = 1):
 
 
 #Force each frame to have a different label
-def generate_labels(similarity_matrix, n_frames:int):
+# def generate_labels(similarity_matrix, n_frames:int):
+#     '''
+#     Args:
+#         similarity_matrix: numpy.ndarray of shape (N, N)
+#     Returns:
+#         labels: torch.tensor of shape (N)    
+#     '''
+#     label = 0
+#     labels = [-1 for x in similarity_matrix[0]]
+
+#     explored_nodes = []
+#     #TODO: Optimise and get rid of this loop
+#     for i in range(n_frames):
+#         labels[i] = i
+#         explored_nodes.append(i)
+#         threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
+#         discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)
+#         for node in discovered_nodes:
+#             if node[0] not in explored_nodes:
+#                 labels[node[0]] = i
+#                 explored_nodes.append(node[0])
+    
+#     label = n_frames
+    
+#     for i in range(n_frames,similarity_matrix.shape[0]):
+#         #print(np.argwhere(similarity_matrix[i] > 0.6))
+#         if i not in explored_nodes:
+#             explored_nodes.append(i)
+#             labels[i] = label
+#             threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
+#             discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)
+
+#             for node in discovered_nodes:
+#                 if node[0] not in explored_nodes:
+#                     labels[node[0]] = label
+#                     explored_nodes.append(node[0])
+#             label += 1
+#         else:
+#             threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
+#             discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)  
+#             for node in discovered_nodes:
+#                 if node[0] not in explored_nodes:
+#                     labels[node[0]] = labels[i]
+#                     explored_nodes.append(node[0])    
+#     return torch.tensor(labels)  
+
+def generate_labels(similarity_matrix, n_frames:int, K:int=3):
     '''
     Args:
         similarity_matrix: numpy.ndarray of shape (N, N)
@@ -135,36 +182,36 @@ def generate_labels(similarity_matrix, n_frames:int):
     for i in range(n_frames):
         labels[i] = i
         explored_nodes.append(i)
-        threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
-        discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)
-        for node in discovered_nodes:
-            if node[0] not in explored_nodes:
-                labels[node[0]] = i
-                explored_nodes.append(node[0])
+        discovered_nodes = np.argsort(similarity_matrix[i])
+        for j in range(K+1):
+            if discovered_nodes[j].item() not in explored_nodes:
+                labels[discovered_nodes[j].item()] = i
+                explored_nodes.append(discovered_nodes[j].item())
+            else:
+                previous_label = labels[discovered_nodes[j].item()]
+                previous_distance = similarity_matrix[previous_label][discovered_nodes[j].item()]
+                if similarity_matrix[i, discovered_nodes[j].item()] < previous_distance:
+                    labels[discovered_nodes[j].item()] = i
     
     label = n_frames
     
     for i in range(n_frames,similarity_matrix.shape[0]):
-        #print(np.argwhere(similarity_matrix[i] > 0.6))
         if i not in explored_nodes:
             explored_nodes.append(i)
             labels[i] = label
-            threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
-            discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)
-
-            for node in discovered_nodes:
-                if node[0] not in explored_nodes:
-                    labels[node[0]] = label
-                    explored_nodes.append(node[0])
-            label += 1
-        else:
-            threshold = np.quantile(similarity_matrix[i, n_frames:], 0.1)
-            discovered_nodes = np.argwhere(similarity_matrix[i, n_frames:] <= threshold)  
-            for node in discovered_nodes:
-                if node[0] not in explored_nodes:
-                    labels[node[0]] = labels[i]
-                    explored_nodes.append(node[0])    
-    return torch.tensor(labels)        
+            discovered_nodes = np.argsort(similarity_matrix[i])
+            for j in range(K+1):
+                if discovered_nodes[j].item() not in explored_nodes:
+                    labels[discovered_nodes[j].item()] = label
+                    explored_nodes.append(discovered_nodes[j].item())
+            # label += 1
+        # else: 
+        #     discovered_nodes = np.argsort(similarity_matrix[i])
+        #     for j in range(K):
+        #         if discovered_nodes[j].item() not in explored_nodes:
+        #             labels[discovered_nodes[j].item()] = labels[i]
+        #             explored_nodes.append(discovered_nodes[j].item())    
+    return torch.tensor(labels)            
 
 def angular_loss(shape1, shape2):
     error = torch.cosine_similarity(shape1, shape2, dim=2, eps=1e-6)

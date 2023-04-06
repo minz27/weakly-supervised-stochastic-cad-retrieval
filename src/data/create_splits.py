@@ -16,7 +16,7 @@ def write_splits(scannet_dir: str, target_dir:str, scan2cad_path:str):
     target_dir = Path(target_dir)
     files = []
     
-    with open('/mnt/raid/mdeka/stochastic_cad_retrieval/src/splits/scannet_train_val.txt') as f: 
+    with open('/mnt/raid/mdeka/stochastic_cad_retrieval/src/splits/scannet_train_temp.txt') as f: 
         selected_scenes = f.readlines()
 
     selected_scenes = [scene.strip() for scene in selected_scenes]
@@ -76,11 +76,11 @@ def write_splits(scannet_dir: str, target_dir:str, scan2cad_path:str):
         
                        
     print(final_frame_list)
-    with open(str(target_dir / "shapenet_train_val.txt"), "w") as f:
+    with open(str(target_dir / "shapenet_train_temp.txt"), "w") as f:
         for obj in object_set:
             f.write(obj) 
 
-    with open(str(target_dir / "scannet_train_val.txt"), "w") as f: 
+    with open(str(target_dir / "scannet_train_temp.txt"), "w") as f: 
         for frame in final_frame_list:
             f.write(frame + '\n')
 

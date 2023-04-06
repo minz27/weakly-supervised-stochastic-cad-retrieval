@@ -21,8 +21,9 @@ from src.util.normal_similarity import self_similarity_normal_histogram, calcula
 from src.data.prepare_data import retrieve_instances, transform_normal_map
 from src.util.losses import VGGPerceptualLoss
 
-K = 5 #Number of nearest neighbours to evaluate
+K = 10 #Number of nearest neighbours to evaluate
 SCAN2CAD_PATH = '/mnt/raid/mdeka/scan2cad/scan2cad_image_alignments.json'
+category_list = ['02818832','04256520','03001627','02747177','02933112','03211117','04379243','02871439']
 vggloss = VGGPerceptualLoss()
 
 def loss_to_evaluate(normal_1:torch.tensor, normal_2:torch.tensor, 
@@ -57,12 +58,12 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
     #     shape_histograms.append(shape_hist)  
 
     # #Dump histograms to pickle so that we don't have to compute it again
-    # with open('src/runs/histograms.pkl', 'wb') as file:
+    # with open('src/runs/new_histograms_v2.pkl', 'wb') as file:
     #     all_histograms = (scan_histograms, shape_histograms)
     #     pickle.dump(all_histograms, file)    
 
     print('Retrieving cached self-similarity histograms...')
-    with open('src/runs/histograms.pkl', 'rb') as file:
+    with open('src/runs/new_histograms_v2.pkl', 'rb') as file:
         scan_histograms, shape_histograms = pickle.load(file) 
 
     # Calculate the distances and cache them to quickly calculate different combinations
@@ -92,12 +93,12 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
     #     all_content_losses[i] = content_losses
     #     all_style_losses[i] = style_losses
     
-    # with open('src/runs/cached_distances_vgg.pkl', 'wb') as file:
+    # with open('src/runs/cached_distances_new_v2.pkl', 'wb') as file:
     #     all_losses = (all_hist_distances, all_content_losses, all_style_losses)
     #     pickle.dump(all_losses, file)
 
     print('Retrieving cached distances...')
-    with open('src/runs/cached_distances_vgg.pkl', 'rb') as file:
+    with open('src/runs/cached_distances_new_v2.pkl', 'rb') as file:
         all_hist_distances, all_content_losses, all_style_losses = pickle.load(file)
 
     print('Calculating distance combination...')
@@ -119,9 +120,12 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
         neighbours = []
         j = 0
         j_loop = 0
-        # Need another variable?
+        
         while j < K:
             idx = sorted_distances[j_loop]
+            if shape_batch['cat_id'][idx // n_views] not in category_list:
+                j_loop+=1
+                continue
             shape_name = shape_batch['cat_id'][idx // n_views] + '/' + shape_batch['model_id'][idx // n_views]
             if shape_name not in neighbours:
                 neighbours.append(shape_name)
@@ -140,7 +144,7 @@ def find_k_nearest_neighbours(masked_imgs, masked_normals, views, shape_normals,
         nearest_neighbours[i] = neighbours        
     
     neighbours_df = pd.DataFrame().from_dict(nearest_neighbours, orient='index')
-    neighbours_df.to_csv(f'src/runs/neighbours_top{K}_min_' + filename, index=False)
+    neighbours_df.to_csv(f'src/runs/neighbours_top{K}_new_v2_' + filename, index=False)
   
     return nearest_neighbours    
 
@@ -166,7 +170,8 @@ def evaluate_similarity_measure(masked_imgs, masked_normals, views, shape_normal
         #     objects_list.append(obj['catid_cad'] + '/' + obj['id_cad'])
         # gt_objects[i] = objects_list   
         obj = scan2cad_img['alignments'][labels[i]][indices[i] - 1]
-        gt_objects[i] = obj['catid_cad'] + '/' + obj['id_cad']
+        if obj['catid_cad'] in category_list:
+            gt_objects[i] = obj['catid_cad'] + '/' + obj['id_cad']
 
     # Create a mapping between model hash and pointclouds
     mapping = [x[0] + '/'+ x[1] for x in zip(shape['cat_id'], shape['model_id'])] 
@@ -174,6 +179,8 @@ def evaluate_similarity_measure(masked_imgs, masked_normals, views, shape_normal
     chamfer_distances = []
     
     for i in tqdm(range(len(labels))):
+        if i not in gt_objects:
+            continue
         retrievals = nearest_neighbours[i]
         gt_obj = gt_objects[i]   
         min_chamfer = 1e5
@@ -199,6 +206,7 @@ def evaluate_similarity_measure(masked_imgs, masked_normals, views, shape_normal
     
     print("Mean chamfer distance%s"%(chamfer_distances.mean()))
     return chamfer_distances.mean()
+    # return 0
 
 if __name__=='__main__':
     config = {
@@ -211,8 +219,8 @@ if __name__=='__main__':
 
     results_file = f'results_top_{K}.csv'
 
-    scannet = OverfitDatasetScannet(config, split="src/splits/evaluate_scannet_split.txt")
-    shapenet = OverfitDatasetShapenet(config, split="src/splits/evaluate_shapenet_split.txt")
+    scannet = OverfitDatasetScannet(config, split="src/splits/analyse_similarity_split_scannet_v2.txt")
+    shapenet = OverfitDatasetShapenet(config, split="src/splits/analyse_similarity_split_shapenet_v2.txt")
 
     scannetloader = torch.utils.data.DataLoader(scannet, batch_size=len(scannet), shuffle=False)
     shapenetloader = torch.utils.data.DataLoader(shapenet, batch_size=len(shapenet), shuffle=False)
@@ -239,13 +247,22 @@ if __name__=='__main__':
 
     n_views = shape['rendered_views'].shape[2] #No of views for each model
 
-    # Try out different parameters
-    alphas = [0, 0.25, 0.5, 0.75, 1]
-    betas = [0, 0.25, 0.5, 0.75, 1]
-    gammas = [0, 0.25, 0.5, 0.75, 1]
+    parameter_set = [(1,0,0), (0,1,0), (0,0,1), (1, 0.25, 0.5), (0,0.5,0.5)]
 
     with open(results_file, 'w') as file:
         file.write('alpha,beta,gamma,chamfer_distance\n')
+
+    # for param in parameter_set:
+    #     alpha, beta, gamma = param
+
+    #     print('Evaluating %s %s %s'%(alpha, beta, gamma))    
+    #     loss = evaluate_similarity_measure(masked_imgs, masked_normals, views, shape_normals, shape, scan, n_views, labels, indices, alpha, beta, gamma) 
+    #     with open(results_file, 'a') as file:
+    #         file.write('%s,%s,%s,%s\n'%(alpha, beta, gamma, loss))
+
+    alphas = np.linspace(0,10,10)
+    betas = np.linspace(0,10,10)
+    gammas = np.linspace(0,10,10)
 
     for alpha in alphas:
         for beta in betas:
@@ -253,4 +270,4 @@ if __name__=='__main__':
                 print('Evaluating %s %s %s'%(alpha, beta, gamma))    
                 loss = evaluate_similarity_measure(masked_imgs, masked_normals, views, shape_normals, shape, scan, n_views, labels, indices, alpha, beta, gamma) 
                 with open(results_file, 'a') as file:
-                    file.write('%s,%s,%s,%s\n'%(alpha, beta, gamma, loss))  
+                    file.write('%s,%s,%s,%s\n'%(alpha, beta, gamma, loss))         

@@ -7,3 +7,14 @@ __pycache__/
 *.so
 
 *runs*
+
+*cached*
+
+*.csv
+
+*wandb*
+
+*.obj
+*.ply
+*.png
+*.npy

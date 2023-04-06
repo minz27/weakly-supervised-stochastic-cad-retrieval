@@ -1,15 +1,16 @@
 import torch
 import torch.nn as nn
-from torchvision.models import resnet18, resnet50
+from torchvision.models import resnet18, resnet50, resnet34
 
 class Encoder(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.resnet = resnet18(pretrained=True)
+        self.resnet = resnet34(pretrained=True)
+        for param in self.resnet.parameters():
+            param.requires_grad = False
         # self.resnet = resnet50(pretrained = True)
         self.pretrained = nn.Sequential(*(list(self.resnet.children())[:-1]))
-
         self.encoder = nn.Sequential(
             #128x128 240x240
             nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1, stride=2),
@@ -45,10 +46,17 @@ class Encoder(nn.Module):
             # Resnet50
             # nn.Linear(in_features=2048, out_features=1024),
             # nn.ReLU(),
-            # nn.Linear(in_features=1024, out_features=512)
-            nn.Linear(in_features=512, out_features=512),
+            # nn.Linear(in_features=1024, out_features=512),
             # nn.ReLU(),
-            # nn.Linear(in_features=512, out_features=512)
+            # nn.Tanh(),
+            nn.Linear(in_features=512, out_features=512),
+            nn.LeakyReLU(),
+            nn.Linear(in_features=512, out_features=256),
+            nn.LeakyReLU(),
+            nn.Linear(in_features=256, out_features=256),
+            # nn.Tanh()
+            # nn.ReLU(),
+            # nn.Linear(in_features=256, out_features=128)
         )
 
         self._initialize_weights()    
