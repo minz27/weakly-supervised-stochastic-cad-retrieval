@@ -34,7 +34,7 @@ class RetrievalDataset(torch.utils.data.Dataset):
         self.threshold = threshold
         self.DEFAULT_WIDTH, self.DEFAULT_HEIGHT = 480, 360
         self.split = split
-        self.train_val_index = 1000
+        self.train_val_index = 64
 
         scannet_mapping_path = cache_root /  "scannet_mapping.pkl" 
         with open(str(scannet_mapping_path), 'rb') as file:
@@ -47,7 +47,7 @@ class RetrievalDataset(torch.utils.data.Dataset):
 
         if split != 'train':
             # self.items = [x.strip() for x in self.items][self.train_val_index:4088]
-            self.items = [x.strip() for x in self.items][self.train_val_index:1200]
+            self.items = [x.strip() for x in self.items][:self.train_val_index]
         else:    
             self.items = [x.strip() for x in self.items][:self.train_val_index]
         # self.items = [x.strip() for x in self.items][:4088]
@@ -62,8 +62,8 @@ class RetrievalDataset(torch.utils.data.Dataset):
             self.augment = transforms.Normalize(mean=[0.4647, 0.4190, 0.3626],std=[0.2954, 0.2809, 0.2681])
         else:    
             self.augment = transforms.Compose([
-                # transforms.RandomRotation(degrees=(0,5)),
-                # transforms.ColorJitter(brightness=0.5, contrast=0.3, saturation=0.3),
+                transforms.RandomRotation(degrees=(0,5)),
+                transforms.ColorJitter(brightness=0.5, contrast=0.3, saturation=0.3),
                 transforms.Normalize(mean=[0.4647, 0.4190, 0.3626],std=[0.2954, 0.2809, 0.2681])
                 ])
 
@@ -130,16 +130,16 @@ class RetrievalDataset(torch.utils.data.Dataset):
                 for node in discovered_nodes:
                     if self.shapenet_items[(node // 6)].split('/')[0] == categories[i]:
                         choices.append(node)
-                    # if len(choices) == 3:
-                    #     break    
+                    if len(choices) == 3:
+                        break    
                 if len(choices) == 0:
                     continue
                 node = random.choice(choices)
-                node = choices[0]       
+                # node = choices[0]       
                 obj_id = self.shapenet_items[(node // 6)]
                 if categories[i] == '04379243':
                     obj_id = categories[i] + '/' + model_ids[i]
-
+                # obj_id = categories[i] + '/' + model_ids[i]
                 view_azimuth = canonical_azimuth[(node % 6)]
                 # print("Node:%s Object id:%s View: %s"%(discovered_nodes[0], obj_id, view_azimuth))
                 obj_path = self.shapenet_root / obj_id / "models/model_normalized.obj"

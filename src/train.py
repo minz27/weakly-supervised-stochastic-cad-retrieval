@@ -111,7 +111,7 @@ def get_labels(masked_normals:torch.tensor, rendered_normals:torch.tensor, scan_
     return anchors, positives, negatives
 
 def train(scan_model, shape_model, device, config, dataloader, scan_dataloader, shape_dataloader, val_dataloader=None, small:bool=False):
-    wandb.init(project='cad_retrieval',reinit=False,  config = config, mode="disabled")
+    wandb.init(project='cad_retrieval',reinit=False,  config = config, mode="online")
     category_list = ['02818832','04256520','03001627','02933112','04379243','02871439', '02747177']
     #Create optimizer
     optimizer = torch.optim.Adam([
@@ -132,7 +132,7 @@ def train(scan_model, shape_model, device, config, dataloader, scan_dataloader, 
 
     #Add criterion
     # criterion = SupervisedContrastiveLoss(temperature=0.07)
-    criterion = TripletMarginLoss(margin=0.8)
+    criterion = TripletMarginLoss(margin=0.05)
     # miner = MultiSimilarityMiner()
     history = []
     best_error = 1e5
@@ -377,4 +377,4 @@ if __name__ == '__main__':
     scan_model = Encoder().to(device)
     shape_model = Encoder().to(device)
     print('Training retrieval model...')
-    history = train(scan_model, shape_model, device, config, dataloader, scan_dataloader, shape_dataloader, val_dataloader, small=False)
+    history = train(scan_model, shape_model, device, config, dataloader, scan_dataloader, shape_dataloader, val_dataloader, small=True)

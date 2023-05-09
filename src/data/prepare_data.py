@@ -178,7 +178,7 @@ def retrieve_instances(color_img, mask, label_dict, num_instances, frame, R, rot
                     indices.append(label)
                     categories.append(category)
                     model_ids.append(model_id)
-            elif (retrieve) and (label != 0) and (count > 0.1*224*224): 
+            elif (retrieve) and (label != 0) and (count > 0.05*224*224): 
                 if to_mask:       
                     masked_instance = mask_instances(color_img[i], mask[i], label)
                 else:     
